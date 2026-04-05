@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Visit {
+  id          String   @id @default(uuid())
+  roomId      String   @unique
+  doctorName  String?
+  patientName String?
+  transcript  String?  @db.Text
+  cleanText   String?  @db.Text
+  symptoms    String[] @default([])
+  medicines   String[] @default([])
+  advice      String[] @default([])
+  duration    String?
+  urgency     String?
+  confidence  Float?
+  summary     String?  @db.Text
+  status      String   @default("active") // active | completed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
