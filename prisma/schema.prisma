@@ -1,26 +1,86 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String
+  passwordHash String
+  role         String        @default("doctor")
+  speciality   String?
+  phone        String?
+  avatarUrl    String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  appointments Appointment[]
+  patients     Patient[]
+  visits       Visit[]
+}
+
+model Patient {
+  id           String        @id @default(uuid())
+  name         String
+  email        String?
+  phone        String?
+  dateOfBirth  DateTime?
+  gender       String?
+  bloodGroup   String?
+  allergies    String[]      @default([])
+  notes        String?
+  doctorId     String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  appointments Appointment[]
+  doctor       User          @relation(fields: [doctorId], references: [id])
+  visits       Visit[]
+}
+
+model Appointment {
+  id           String   @id @default(uuid())
+  doctorId     String
+  patientId    String
+  scheduledAt  DateTime
+  durationMins Int      @default(30)
+  type         String   @default("video")
+  reason       String?
+  notes        String?
+  status       String   @default("pending")
+  reminderSent Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  doctor       User     @relation(fields: [doctorId], references: [id])
+  patient      Patient  @relation(fields: [patientId], references: [id])
+  visit        Visit?
+}
+
 model Visit {
-  id          String   @id @default(uuid())
-  roomId      String   @unique
-  doctorName  String?
-  patientName String?
-  transcript  String?  @db.Text
-  cleanText   String?  @db.Text
-  symptoms    String[] @default([])
-  medicines   String[] @default([])
-  advice      String[] @default([])
-  duration    String?
-  urgency     String?
-  confidence  Float?
-  summary     String?  @db.Text
-  status      String   @default("active") // active | completed
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String       @id @default(uuid())
+  roomId        String       @unique
+  doctorName    String?
+  patientName   String?
+  transcript    String?
+  cleanText     String?
+  symptoms      String[]     @default([])
+  medicines     String[]     @default([])
+  advice        String[]     @default([])
+  duration      String?
+  urgency       String?
+  confidence    Float?
+  summary       String?
+  status        String       @default("active")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  appointmentId String?      @unique
+  doctorId      String
+  patientId     String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  doctor        User         @relation(fields: [doctorId], references: [id])
+  patient       Patient?     @relation(fields: [patientId], references: [id])
 }

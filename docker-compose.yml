@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  db:
+    image: postgres:17-alpine
+    container_name: medassist-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-medassist}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-medassist}
+      POSTGRES_DB: ${POSTGRES_DB:-medassist}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-medassist}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── ML microservice (FastAPI) ────────────────────────────────────────────────
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: medassist-ml
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    volumes:
+      # Mount model folder so you can swap .pkl files without rebuilding the image
+      - ./ai-service/model:/app/model:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ── Next.js app ──────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+    container_name: medassist-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-medassist}:${POSTGRES_PASSWORD:-medassist}@db:5432/${POSTGRES_DB:-medassist}
+      ML_API_URL: http://ai-service:8000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,14 @@
+{
+  "labels": [
+    "low",
+    "medium",
+    "high"
+  ],
+  "description": {
+    "low": "Minor issues, routine care",
+    "medium": "Needs attention, follow-up required",
+    "high": "Serious/emergency, immediate attention"
+  },
+  "accuracy": 88.83,
+  "note": "This is a calibrated model for better confidence scores. Use predict_proba for confidence."
+}

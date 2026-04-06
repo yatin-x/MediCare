@@ -19,6 +19,11 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ doctorName, patientName })
       })
+          if (!res.ok) {
+      const text = await res.text();
+      console.error("API ERROR:", text); // 👈 THIS WILL SHOW REAL ISSUE
+      throw new Error("Request failed");
+}
       const { roomId } = await res.json()
       router.push(`/room/${roomId}?role=doctor&name=${encodeURIComponent(doctorName)}`)
     } catch (e) {
