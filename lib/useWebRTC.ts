@@ -13,12 +13,15 @@ interface WebRTCState {
   remoteStream: MediaStream | null
   connectionState: 'idle' | 'connecting' | 'connected' | 'disconnected'
   peerJoined: boolean
+  socket: Socket | null
 }
 
 export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTCState {
   const socketRef = useRef<Socket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
-  const remoteStreamRef = useRef<MediaStream>(new MediaStream())
+  
+  // FIX: Don't instantiate MediaStream on the server. Default to null.
+  const remoteStreamRef = useRef<MediaStream | null>(null)
 
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
   const [connectionState, setConnectionState] = useState<WebRTCState['connectionState']>('idle')
@@ -42,10 +45,20 @@ export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTC
 
     // Receive remote tracks
     pc.ontrack = (event) => {
-      event.streams[0].getTracks().forEach(track => {
-        remoteStreamRef.current.addTrack(track)
-      })
-      setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()))
+      // FIX: Lazily initialize MediaStream only on the client
+      if (!remoteStreamRef.current && typeof MediaStream !== 'undefined') {
+        remoteStreamRef.current = new MediaStream()
+      }
+      
+      if (remoteStreamRef.current) {
+        event.streams[0].getTracks().forEach(track => {
+          // Prevent adding duplicate tracks
+          if (!remoteStreamRef.current!.getTracks().map(t => t.id).includes(track.id)) {
+            remoteStreamRef.current!.addTrack(track)
+          }
+        })
+        setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()))
+      }
       setConnectionState('connected')
     }
 
@@ -154,11 +167,15 @@ export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTC
     })
 
     return () => {
-      socket.emit('leave-room', { roomId })
-      socket.disconnect()
-      pc.close()
+      if (socketRef.current) {
+        socketRef.current.emit('leave-room', { roomId })
+        socketRef.current.disconnect()
+      }
+      if (pcRef.current) {
+        pcRef.current.close()
+      }
     }
   }, [localStream, roomId, role, createPC])
 
-  return { remoteStream, connectionState, peerJoined }
+  return { remoteStream, connectionState, peerJoined, socket: socketRef.current }
 }

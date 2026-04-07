@@ -45,6 +45,11 @@ export default function RoomPage() {
   const [isRecording, setIsRecording] = useState(false)
   const [transcript, setTranscript]   = useState('')
   const [interimText, setInterimText] = useState('')
+  const manualStopRef = useRef(false)
+  const interimRef    = useRef('')
+  const isMutedRef    = useRef(false)
+
+  useEffect(() => { isMutedRef.current = isMuted }, [isMuted])
 
   // Analysis state
   const [analysis, setAnalysis]       = useState<AnalysisResult | null>(null)
@@ -52,29 +57,54 @@ export default function RoomPage() {
   const [copied, setCopied]           = useState(false)
 
   // WebRTC hook
-  const { remoteStream, connectionState, peerJoined } = useWebRTC({
+  const { remoteStream, connectionState, peerJoined, socket } = useWebRTC({
     roomId,
     role,
     localStream
   })
 
-  // Keep transcriptRef in sync
-  useEffect(() => { transcriptRef.current = transcript }, [transcript])
+  // Keep latest socket in a ref so we don't restart SpeechRecognition when it connects
+  const socketRef = useRef<any>(null)
+  useEffect(() => { socketRef.current = socket }, [socket])
+
+  // Listen for remote transcript
+  useEffect(() => {
+    if (!socket) return
+    const onRemoteChunk = ({ chunk, from }: { chunk: string; from: string }) => {
+      setTranscript(p => {
+        const updated = p + chunk
+        transcriptRef.current = updated
+        return updated
+      })
+    }
+    socket.on('transcript-chunk', onRemoteChunk)
+    return () => {
+      socket.off('transcript-chunk', onRemoteChunk)
+    }
+  }, [socket])
 
   // ── Start camera ────────────────────────────────────────────
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    let mounted = true
+
+    getCameraStream()
       .then(stream => {
+        if (!mounted) return
         setLocalStream(stream)
         if (localVideoRef.current) localVideoRef.current.srcObject = stream
         setCallStatus('connecting')
       })
       .catch(err => {
         console.error('Camera error:', err)
-        setCallStatus('connecting')
+        if (mounted) setCallStatus('connecting')
       })
+
     return () => {
-      localStream?.getTracks().forEach(t => t.stop())
+      mounted = false
+      setLocalStream(prev => {
+        prev?.getTracks().forEach(t => t.stop())
+        return null
+      })
       if (durationRef.current) clearInterval(durationRef.current)
     }
   }, [])
@@ -102,43 +132,98 @@ export default function RoomPage() {
   }
 
   // ── Speech recognition ───────────────────────────────────────
-  const startRecording = useCallback(() => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SR) { alert('Use Chrome for speech recognition.'); return }
+const isRecordingRef = useRef(false)
 
+const startRecording = useCallback(() => {
+  const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  if (!SR) { alert('Use Chrome for speech recognition.'); return }
+
+  // Reset flags cleanly on every (re)start
+  manualStopRef.current = false
+  isRecordingRef.current = true
+
+  const createAndStart = () => {
+    // Always create a FRESH instance — never restart a dead one
     const r = new SR()
-    r.continuous      = true
-    r.interimResults  = true
-    r.lang            = 'en-US'
+    r.continuous     = true
+    r.interimResults = true
+    r.lang           = 'en-US'
 
     r.onresult = (event: any) => {
       let interim = '', finalChunk = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        event.results[i].isFinal
-          ? (finalChunk += event.results[i][0].transcript + ' ')
-          : (interim    += event.results[i][0].transcript)
+        const result = event.results[i]
+        result.isFinal
+          ? (finalChunk += result[0].transcript + ' ')
+          : (interim    += result[0].transcript)
       }
-      if (finalChunk) setTranscript(p => p + finalChunk)
+
       setInterimText(interim)
+      interimRef.current = interim
+
+      if (finalChunk.trim() && !isMutedRef.current) {
+        const textWithPrefix = `[${role}] ${finalChunk.trim()}\n`
+        // Write to ref FIRST, then sync state from ref — avoids stale closure
+        transcriptRef.current += textWithPrefix
+        setTranscript(transcriptRef.current)
+
+        if (socketRef.current) {
+          socketRef.current.emit('transcript-chunk', { chunk: textWithPrefix, roomId })
+        }
+      }
     }
 
     r.onerror = (e: any) => {
-      if (e.error === 'not-allowed') alert('Microphone permission denied.')
+      // TEMP: log everything so we can detect when Chrome/getUserMedia
+      // steals the microphone (only one API can hold the mic at a time).
+      // Keep this enabled during demo verification.
+      console.log('🎤 SR Error:', e.error)
     }
 
-    r.onend = () => { if (recognitionRef.current) r.start() }
+    r.onstart = () => console.log('🎤 SR Started')
 
-    r.start()
-    recognitionRef.current = r
-    setIsRecording(true)
-  }, [])
+    r.onend = () => {
+      // Only restart if we haven't been manually stopped
+      if (!manualStopRef.current && isRecordingRef.current) {
+        setTimeout(createAndStart, 250) // fresh instance every time
+      }
+    }
 
-  const stopRecording = useCallback(() => {
-    recognitionRef.current?.stop()
+    try {
+      r.start()
+      recognitionRef.current = r
+    } catch (err) {
+      // If start throws, retry after a delay
+      if (!manualStopRef.current && isRecordingRef.current) {
+        setTimeout(createAndStart, 500)
+      }
+    }
+  }
+
+  createAndStart()
+  setIsRecording(true)
+}, [role, roomId])
+
+const stopRecording = useCallback(() => {
+  manualStopRef.current = true
+  isRecordingRef.current = false
+  if (recognitionRef.current) {
+    try { recognitionRef.current.stop() } catch(e) {}
     recognitionRef.current = null
-    setIsRecording(false)
-    setInterimText('')
-  }, [])
+  }
+  setIsRecording(false)
+  setInterimText('')
+}, [])
+
+// ── Auto-start — runs once, StrictMode-safe ──────────────────
+const hasStartedRef = useRef(false)
+useEffect(() => {
+  if (hasStartedRef.current) return // StrictMode guard
+  hasStartedRef.current = true
+  startRecording()
+  return () => stopRecording()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [])
 
   // ── Mic / camera toggles ─────────────────────────────────────
   function toggleMic() {
@@ -159,13 +244,40 @@ export default function RoomPage() {
     setCallStatus('ended')
     setIsAnalyzing(true)
 
+    let finalTranscript = transcriptRef.current
+    if (interimRef.current.trim() && !isMutedRef.current) {
+      finalTranscript += `[${role}] ${interimRef.current.trim()}\n`
+    }
+
+    console.log('====================================================')
+    console.log('🏁 FULL TRANSCRIPT TO BE SENT TO AI:')
+    console.log('----------------------------------------------------')
+    console.log(finalTranscript || '(No transcript recorded)')
+    console.log('====================================================')
+
+    if (!finalTranscript || !finalTranscript.trim()) {
+      setAnalysis({
+        urgency:    'low',
+        confidence: 1.0,
+        summary:    'No conversation was recorded during this session. Please ensure your microphone is working and not blocked by the browser.',
+        extracted:  { symptoms: [], medicines: [], advice: [], duration: null }
+      })
+      setIsAnalyzing(false)
+      return
+    }
+
     try {
       const res  = await fetch('/api/analyze', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ roomId, transcript: transcriptRef.current || '' })
+        body:    JSON.stringify({ roomId, transcript: finalTranscript })
       })
       const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Analysis request failed')
+      }
+
       setAnalysis({
         urgency:    data.urgency,
         confidence: data.confidence,
@@ -380,79 +492,88 @@ export default function RoomPage() {
               P2P Connected
             </div>
           )}
-        </div>
-
-        {/* ── Right panel: transcript ── */}
-        <div style={{ width: '340px', borderLeft: '1px solid var(--border)', display: 'flex', flexDirection: 'column', background: 'var(--surface)', flexShrink: 0 }}>
-
-          {/* Panel header */}
-          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ fontWeight: 600, fontSize: '14px' }}>Live Transcript</p>
-              {isRecording && (
-                <p style={{ fontSize: '11px', color: '#ef4444', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ width: 6, height: 6, background: '#ef4444', borderRadius: '50%', display: 'inline-block' }} className="recording" />
-                  Recording...
-                </p>
+          
+          {/* ── Developer / Transcription Debug Console ── */}
+          <div style={{ position: 'absolute', top: 12, right: 12, width: '300px', maxHeight: '150px', background: 'rgba(0,0,0,0.8)', border: '1px solid #333', borderRadius: '8px', padding: '8px 12px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+            <div style={{ fontSize: '10px', color: '#10b981', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase' }}>🗣️ Live Transcription Debug</div>
+            <div style={{ flex: 1, overflowY: 'auto', fontSize: '11px', color: '#ccc', fontFamily: 'monospace', lineHeight: 1.4 }}>
+              {transcript ? (
+                <>
+                  <span style={{ color: 'white' }}>{transcript}</span>
+                  {interimText && <span style={{ color: '#888', fontStyle: 'italic' }}>{interimText}</span>}
+                </>
+              ) : (
+                <span style={{ color: '#666' }}>{isRecording ? 'Listening for speech...' : 'Waiting for microphone...'}</span>
               )}
             </div>
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              className={isRecording ? 'recording' : ''}
+          </div>
+          
+          {/* ── Overlay Controls (replaces side panel) ── */}
+          <div style={{
+            position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', alignItems: 'center', gap: '16px',
+            padding: '12px 24px', background: 'rgba(10, 15, 30, 0.75)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '100px', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+          }}>
+            <button onClick={toggleMic}
               style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '6px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
-                fontSize: '12px', fontWeight: 600, transition: 'all 0.2s',
-                background: isRecording ? '#ef4444' : 'var(--accent)',
-                color: isRecording ? 'white' : '#0a0f1e',
+                width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                background: isMuted ? '#ef4444' : 'rgba(255,255,255,0.1)', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', transition: 'all 0.2s'
               }}>
-              {isRecording ? '⏹ Stop' : '🎤 Record'}
+              {isMuted ? '🔇' : '🎤'}
             </button>
-          </div>
-
-          {/* Transcript content */}
-          <div style={{ flex: 1, padding: '14px 16px', overflowY: 'auto' }}>
-            <p style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.9 }}>
-              {transcript
-                ? <><span style={{ color: 'var(--text-primary)' }}>{transcript}</span>
-                    {interimText && <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{interimText}</span>}
-                  </>
-                : <span style={{ color: 'var(--text-muted)' }}>
-                    {isRecording ? 'Listening... speak now.' : 'Press Record to capture conversation.'}
-                  </span>
-              }
-            </p>
-          </div>
-
-          {/* Word count */}
-          <div style={{ padding: '6px 16px', borderTop: '1px solid var(--border)' }}>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              {transcript.split(' ').filter(Boolean).length} words
-            </p>
-          </div>
-
-          {/* Controls */}
-          <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={toggleMic}
-                style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid var(--border)', background: isMuted ? '#ef444418' : 'var(--bg)', color: isMuted ? '#ef4444' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px' }}>
-                {isMuted ? '🔇 Muted' : '🔊 Mic On'}
-              </button>
-              <button onClick={toggleCamera}
-                style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid var(--border)', background: isCameraOff ? '#ef444418' : 'var(--bg)', color: isCameraOff ? '#ef4444' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px' }}>
-                {isCameraOff ? '📷 Off' : '📹 On'}
-              </button>
-            </div>
+            <button onClick={toggleCamera}
+              style={{
+                width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                background: isCameraOff ? '#ef4444' : 'rgba(255,255,255,0.1)', color: 'white',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', transition: 'all 0.2s'
+              }}>
+              {isCameraOff ? '📷' : '📹'}
+            </button>
+            <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.2)' }} />
             <button onClick={endCall}
-              style={{ width: '100%', padding: '12px', background: '#ef4444', border: 'none', borderRadius: '8px', color: 'white', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>
+              style={{
+                padding: '0 24px', height: 48, borderRadius: '24px', border: 'none', cursor: 'pointer',
+                background: '#ef4444', color: 'white', fontWeight: 600, fontSize: '15px',
+                display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
+              }}>
               📞 End & Analyze
             </button>
-            <p style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
-              Ends call · runs full AI pipeline
-            </p>
           </div>
         </div>
       </div>
     </main>
   )
+}
+
+async function getCameraStream(preferredDeviceId?: string) {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error('MediaDevices API not supported')
+  }
+
+  const tryGet = async (constraints: MediaStreamConstraints) => {
+    return await navigator.mediaDevices.getUserMedia(constraints)
+  }
+
+  try {
+    if (preferredDeviceId) {
+      return await tryGet({ video: { deviceId: { exact: preferredDeviceId } }, audio: true })
+    }
+    return await tryGet({ video: true, audio: true })
+  } catch (err) {
+    console.warn('getUserMedia primary failed:', err)
+    
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const cams = devices.filter(d => d.kind === 'videoinput')
+    if (cams.length === 0) throw new Error('No camera devices found')
+
+    try {
+      return await tryGet({ video: { deviceId: cams[0].deviceId }, audio: true })
+    } catch (err2) {
+      console.warn('Fallback with specific deviceId failed:', err2)
+      return await tryGet({ video: true, audio: true })
+    }
+  }
 }

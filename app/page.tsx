@@ -1,31 +1,67 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { signIn, signOut, useSession } from 'next-auth/react'
 
 export default function Home() {
+  const { data: session, status } = useSession()
   const router = useRouter()
-  const [doctorName, setDoctorName] = useState('')
   const [patientName, setPatientName] = useState('')
   const [loading, setLoading] = useState(false)
   const [joinId, setJoinId] = useState('')
   const [tab, setTab] = useState<'create' | 'join'>('create')
 
+  // Auth states
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [isRegistering, setIsRegistering] = useState(false)
+
+  async function handleAuth(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      if (isRegistering) {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name })
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          alert(err.error || 'Registration failed')
+          setLoading(false)
+          return
+        }
+      }
+      
+      const result = await signIn('credentials', {
+        redirect: false,
+        email,
+        password
+      })
+      if (result?.error) {
+        alert(result.error)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function createRoom() {
-    if (!doctorName.trim() || !patientName.trim()) return
+    if (!patientName.trim() || !session) return
     setLoading(true)
     try {
       const res = await fetch('/api/room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ doctorName, patientName })
+        body: JSON.stringify({ patientName })
       })
-          if (!res.ok) {
-      const text = await res.text();
-      console.error("API ERROR:", text); // 👈 THIS WILL SHOW REAL ISSUE
-      throw new Error("Request failed");
-}
+      if (!res.ok) throw new Error("Request failed")
       const { roomId } = await res.json()
-      router.push(`/room/${roomId}?role=doctor&name=${encodeURIComponent(doctorName)}`)
+      router.push(`/room/${roomId}?role=doctor&name=${encodeURIComponent(session.user?.name || 'Doctor')}`)
     } catch (e) {
       console.error(e)
       setLoading(false)
@@ -70,25 +106,48 @@ export default function Home() {
         </div>
 
         {tab === 'create' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Doctor Name</label>
-              <input value={doctorName} onChange={e => setDoctorName(e.target.value)}
-                placeholder="Dr. Sharma"
-                style={{ width: '100%', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }} />
+          !session ? (
+            <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {isRegistering && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Name</label>
+                  <input value={name} onChange={e => setName(e.target.value)} required style={{ width: '100%', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none' }} />
+                </div>
+              )}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Email</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={{ width: '100%', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required style={{ width: '100%', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none' }} />
+              </div>
+              <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', padding: '12px', marginTop: '8px' }}>
+                {loading ? 'Processing...' : (isRegistering ? 'Register as Doctor' : 'Log In as Doctor')}
+              </button>
+              <button type="button" onClick={() => setIsRegistering(!isRegistering)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '13px' }}>
+                {isRegistering ? 'Already have an account? Log In' : 'Need an account? Register'}
+              </button>
+            </form>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ padding: '12px', background: 'var(--surface)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Welcome, <strong>{session.user?.name}</strong></span>
+                <button onClick={() => signOut()} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px' }}>Sign Out</button>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Patient Name</label>
+                <input value={patientName} onChange={e => setPatientName(e.target.value)}
+                  placeholder="Rahul Mehta"
+                  style={{ width: '100%', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }} />
+              </div>
+              <button onClick={createRoom} disabled={loading || !patientName}
+                className="btn-primary"
+                style={{ width: '100%', padding: '12px', marginTop: '8px', opacity: (!patientName) ? 0.5 : 1 }}>
+                {loading ? 'Creating...' : 'Start Consultation →'}
+              </button>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Patient Name</label>
-              <input value={patientName} onChange={e => setPatientName(e.target.value)}
-                placeholder="Rahul Mehta"
-                style={{ width: '100%', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '15px', outline: 'none' }} />
-            </div>
-            <button onClick={createRoom} disabled={loading || !doctorName || !patientName}
-              className="btn-primary"
-              style={{ width: '100%', padding: '12px', marginTop: '8px', opacity: (!doctorName || !patientName) ? 0.5 : 1 }}>
-              {loading ? 'Creating...' : 'Start Consultation →'}
-            </button>
-          </div>
+          )
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>

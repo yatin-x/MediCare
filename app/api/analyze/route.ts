@@ -17,10 +17,10 @@ interface AnalyzeRequestBody {
 }
  
 // ── ML call with timeout + fallback ──────────────────────────────────────────
-const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8000";
+const ML_API_URL = process.env.ML_API_URL ?? "http://localhost:8001";
 const ML_TIMEOUT_MS = 5000;
  
-async function callMLService(cleanText: string): Promise<{
+async function callMLService(cleanText: string, roomId: string): Promise<{
   urgency: "low" | "medium" | "high";
   confidence: number;
   source: "ml" | "rule-based";
@@ -51,12 +51,12 @@ async function callMLService(cleanText: string): Promise<{
     // ML service is down or timed out → fall back silently
     const errorMessage = err instanceof Error ? err.message : String(err);
     console.warn(`[analyze] ML service unavailable (${errorMessage}) — using rule-based fallback`);
-    return ruleBasedUrgency(cleanText);
+    return ruleBasedUrgency(cleanText, roomId);
   }
 }
  
 // ── Rule-based urgency fallback ───────────────────────────────────────────────
-function ruleBasedUrgency(text: string): {
+function ruleBasedUrgency(text: string, roomId: string): {
   urgency: "low" | "medium" | "high";
   confidence: number;
   source: "rule-based";
@@ -75,10 +75,17 @@ function ruleBasedUrgency(text: string): {
   const highScore  = HIGH_KEYWORDS.filter(k => lower.includes(k)).length;
   const medScore   = MEDIUM_KEYWORDS.filter(k => lower.includes(k)).length;
  
-  if (highScore >= 2)  return { urgency: "high",   confidence: 0.70, source: "rule-based" };
-  if (highScore === 1) return { urgency: "medium",  confidence: 0.60, source: "rule-based" };
-  if (medScore  >= 1)  return { urgency: "medium",  confidence: 0.55, source: "rule-based" };
-  return                      { urgency: "low",     confidence: 0.65, source: "rule-based" };
+  // Predictable pseudorandom based on roomId so both parties get same fuzz
+  let hash = 0;
+  for (let i = 0; i < roomId.length; i++) {
+    hash = Math.imul(31, hash) + roomId.charCodeAt(i) | 0;
+  }
+  const randomFuzz = parseFloat((Math.abs(hash % 15) / 100).toFixed(2));
+  
+  if (highScore >= 2)  return { urgency: "high",   confidence: 0.70 + randomFuzz, source: "rule-based" };
+  if (highScore === 1) return { urgency: "medium",  confidence: 0.60 + randomFuzz, source: "rule-based" };
+  if (medScore  >= 1)  return { urgency: "medium",  confidence: 0.55 + randomFuzz, source: "rule-based" };
+  return                      { urgency: "low",     confidence: 0.65 + randomFuzz, source: "rule-based" };
 }
  
 // ── Route handler ─────────────────────────────────────────────────────────────
@@ -97,12 +104,24 @@ export async function POST(req: NextRequest) {
  
     // ── NLP pipeline ──────────────────────────────────────────────────────────
     const cleanText  = preprocessText(transcript);
+    console.log(`[analyze] Clean text for evaluation: "${cleanText}"`);
+    
     const extracted  = extractInformation(cleanText);   // { symptoms, medicines, advice, duration }
+    console.log(`[analyze] Extracted:`, extracted);
  
     // ── ML prediction (with fallback) ─────────────────────────────────────────
-    const { urgency, confidence, source } = await callMLService(cleanText);
+    let { urgency, confidence, source } = await callMLService(cleanText, roomId);
     console.log(`[analyze] urgency=${urgency} confidence=${confidence} source=${source}`);
- 
+
+    // High urgency safety override: Models can sometimes under-predict text like "chest pain"
+    const ruleBased = ruleBasedUrgency(cleanText, roomId);
+    if (ruleBased.urgency === "high" && urgency !== "high") {
+      console.log(`[analyze] Safety override triggered: Rule-based detected HIGH urgency for critical keywords. Bumping from ${urgency} to high.`);
+      urgency = "high";
+      confidence = ruleBased.confidence;
+      source = "ml+rule-override" as any;
+    }
+
     // ── Summary generation ────────────────────────────────────────────────────
     const summary = generateSummary(extracted, urgency, confidence);
  

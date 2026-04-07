@@ -71,32 +71,33 @@ export function generateSummary(
   const { symptoms, medicines, advice, duration } = extracted
 
   const urgencyText = {
-    low: 'LOW urgency — routine follow-up recommended',
-    medium: 'MEDIUM urgency — attention required within 24–48 hours',
-    high: 'HIGH urgency — immediate medical attention required'
-  }[urgency] ?? 'urgency level undetermined'
+    low: 'LOW urgency',
+    medium: 'MEDIUM urgency',
+    high: 'HIGH urgency'
+  }[urgency] ?? 'MEDIUM urgency'
 
   const parts: string[] = []
 
+  // Introductory sentence for a richer summary
   if (symptoms.length > 0) {
     const symptomList = symptoms.join(', ')
-    const durationStr = duration ? ` for ${duration}` : ''
-    parts.push(`The patient reports ${symptomList}${durationStr}.`)
+    const durationStr = duration ? ` extending over a period of ${duration}` : ''
+    parts.push(`The patient reports presenting with the following primary symptoms: ${symptomList}${durationStr}.`)
   } else {
-    parts.push('The patient presented for a consultation.')
+    parts.push('The patient presented for a general consultation with no specific severe symptoms detected in the transcript.')
   }
 
   if (medicines.length > 0) {
-    parts.push(`Prescribed: ${medicines.join(', ')}.`)
+    parts.push(`Following the evaluation, the medical professional has prescribed ${medicines.join(' and ')} for treatment.`)
+  } else {
+    parts.push('No specific medications were explicitly prescribed during this session.')
   }
+
+  parts.push(`Based on the clinical parameters discussed, this case is classified entirely as ${urgencyText}.`)
 
   if (advice.length > 0) {
-    parts.push(`Advised to: ${advice.join(', ')}.`)
+    parts.push(`The doctor strongly advised the patient to ${advice.join(', ')} to ensure a supportive recovery.`)
   }
-
-  parts.push(
-    `Case classified as ${urgencyText} (model confidence: ${(confidence * 100).toFixed(1)}%).`
-  )
 
   return parts.join(' ')
 }

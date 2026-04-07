@@ -53,7 +53,7 @@ services:
       ai-service:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-medassist}:${POSTGRES_PASSWORD:-medassist}@db:5432/${POSTGRES_DB:-medassist}
+      DATABASE_URL: ${DATABASE_URL}
       ML_API_URL: http://ai-service:8000
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}

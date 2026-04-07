@@ -61,6 +61,14 @@ async function start() {
       io.to(to).emit('signal-ice', { candidate, from: socket.id })
     })
 
+    socket.on('transcript-chunk', ({ chunk, to, roomId }) => {
+      if (to) {
+        io.to(to).emit('transcript-chunk', { chunk, from: socket.id })
+      } else if (roomId) {
+        socket.to(roomId).emit('transcript-chunk', { chunk, from: socket.id })
+      }
+    })
+
     socket.on('leave-room', ({ roomId }) => {
       socket.to(roomId).emit('peer-left')
       if (rooms[roomId]) {
