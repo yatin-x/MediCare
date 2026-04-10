@@ -13,7 +13,7 @@ interface WebRTCState {
   remoteStream: MediaStream | null
   connectionState: 'idle' | 'connecting' | 'connected' | 'disconnected'
   peerJoined: boolean
-  socket: Socket | null
+  socket: any
 }
 
 export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTCState {
