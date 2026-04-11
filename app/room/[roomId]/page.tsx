@@ -115,46 +115,51 @@ export default function RoomPage() {
   // Uses MediaRecorder on the SAME stream WebRTC already holds.
   // No mic conflict because MediaRecorder reads from the existing track.
 
+  const workerRef = useRef<Worker | null>(null)
+
+  useEffect(() => {
+    const worker = new Worker('/whisper-worker.js', { type: 'module' })
+    worker.onmessage = (e) => {
+      if (e.data.status === 'loading') { setWhisperStatus('sending'); return }
+      if (e.data.status === 'done' && e.data.text?.trim()) {
+        const chunk = `[${role}] ${e.data.text.trim()}\n`
+        setTranscript(p => { const next = p + chunk; transcriptRef.current = next; return next })
+        socketRef.current?.emit('transcript-chunk', { chunk, roomId })
+        setWhisperStatus('ok')
+      }
+    }
+    workerRef.current = worker
+    return () => worker.terminate()
+  }, [])
+
   const flushChunk = useCallback(async () => {
     if (chunksRef.current.length === 0) return
-    const blob  = new Blob(chunksRef.current, { type: 'audio/webm' })
+    const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
     chunksRef.current = []
-    if (blob.size < 1000) return          // too short — silence
-
+    if (blob.size < 1000) return
     setWhisperStatus('sending')
-    try {
-      const form = new FormData()
-      form.append('audio', blob, 'chunk.webm')
-      form.append('role', role)
-
-      const res  = await fetch('/api/transcribe', { method: 'POST', body: form })
-      const data = await res.json()
-
-      if (data.text) {
-        setTranscript(p => {
-          const next = p + data.text
-          transcriptRef.current = next
-          return next
-        })
-        // broadcast to remote peer
-        socketRef.current?.emit('transcript-chunk', { chunk: data.text, roomId })
-      }
-      setWhisperStatus('ok')
-    } catch (err) {
-      console.error('Whisper flush error:', err)
-      setWhisperStatus('err')
-    }
-  }, [role, roomId])
+    // Don't decode — send the raw blob URL to the worker instead
+    const arrayBuffer = await blob.arrayBuffer()
+    workerRef.current?.postMessage({ audioData: arrayBuffer, sampleRate: 16000 }, [arrayBuffer])
+      }, [role, roomId])
 
   const startWhisperRecording = useCallback((stream: MediaStream) => {
     if (isRecordingRef.current) return
+
+    const audioTrack = stream.getAudioTracks()[0]
+    if (!audioTrack) {
+      console.warn('No audio track found for Whisper')
+      return
+    }
+
     isRecordingRef.current = true
 
     const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
       ? 'audio/webm;codecs=opus'
       : 'audio/webm'
 
-    const recorder = new MediaRecorder(stream, { mimeType })
+    const audioStream = new MediaStream([audioTrack])
+    const recorder = new MediaRecorder(audioStream, { mimeType })
     recorderRef.current = recorder
     chunksRef.current   = []
 

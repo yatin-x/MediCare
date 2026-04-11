@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
     whisperForm.append('model', 'whisper-1')
     whisperForm.append('language', 'en')
 
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const response = await fetch('https://api.whisper-api.com/transcribe', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      headers: { 'X-API-Key': process.env.WHISPER_API_KEY || '' },
       body: whisperForm,
     })
 
