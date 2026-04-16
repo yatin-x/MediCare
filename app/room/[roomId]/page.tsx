@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { useWebRTC } from '@/lib/useWebRTC'
+import type { Socket } from 'socket.io-client'
 
 type UrgencyLevel = 'low' | 'medium' | 'high'
 interface AnalysisResult {
@@ -17,7 +18,30 @@ interface AnalysisResult {
   }
 }
 
-const CHUNK_INTERVAL_MS = 10_000 // send audio to Whisper every 10s
+const CHUNK_INTERVAL_MS = 5_000 // send audio to Whisper every 10s
+
+type SpeechRecognitionAlternativeLike = { transcript?: string }
+type SpeechRecognitionEventLike = {
+  results?: ArrayLike<ArrayLike<SpeechRecognitionAlternativeLike>>
+}
+type SpeechRecognitionLike = {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  start: () => void
+  stop: () => void
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onerror: ((event: unknown) => void) | null
+  onend: (() => void) | null
+}
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+
+declare global {
+  interface Window {
+    webkitSpeechRecognition?: SpeechRecognitionConstructor
+    SpeechRecognition?: SpeechRecognitionConstructor
+  }
+}
 
 export default function RoomPage() {
   const params      = useParams()
@@ -37,7 +61,7 @@ export default function RoomPage() {
   const intervalRef     = useRef<NodeJS.Timeout | null>(null)
   const durationRef     = useRef<NodeJS.Timeout | null>(null)
   const isRecordingRef  = useRef(false)
-  const socketRef       = useRef<any>(null)
+  const socketRef       = useRef<Socket | null>(null)
 
   // ── State ─────────────────────────────────────────────────────
   const [localStream,   setLocalStream]   = useState<MediaStream | null>(null)
@@ -82,27 +106,6 @@ export default function RoomPage() {
     return () => { socket.off('transcript-chunk', handler) }
   }, [socket])
 
-  // ── Camera ────────────────────────────────────────────────────
-  const cameraInitRef = useRef(false)
-  useEffect(() => {
-    if (cameraInitRef.current) return
-    cameraInitRef.current = true
-
-    getCameraStream().then(stream => {
-      setLocalStream(stream)
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream
-      setCallStatus('connecting')
-    }).catch(err => {
-      console.error('Camera error:', err)
-      setCallStatus('connecting')
-    })
-
-    return () => {
-      stopWhisperRecording()
-      if (durationRef.current) clearInterval(durationRef.current)
-    }
-  }, [])
-
   // ── Call timer ────────────────────────────────────────────────
   useEffect(() => {
     if (callStatus === 'connected') {
@@ -116,21 +119,84 @@ export default function RoomPage() {
   // No mic conflict because MediaRecorder reads from the existing track.
 
   const workerRef = useRef<Worker | null>(null)
+  const decodeFailCountRef = useRef(0)
+
+  // Free fallback (Chrome/Edge): Web Speech API
+  const speechRecRef = useRef<SpeechRecognitionLike | null>(null)
+  const isSpeechRecRunningRef = useRef(false)
+
+  const appendTranscriptChunk = useCallback((raw: string) => {
+    const text = raw.trim()
+    if (!text) return
+    const chunk = `[${role}] ${text}\n`
+    setTranscript(p => {
+      const next = p + chunk
+      transcriptRef.current = next
+      return next
+    })
+    socketRef.current?.emit('transcript-chunk', { chunk, roomId })
+  }, [role, roomId])
+
+  const startSpeechRecognitionFallback = useCallback(() => {
+    if (isSpeechRecRunningRef.current) return
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) return
+
+    const rec = new SpeechRecognition()
+    rec.continuous = true
+    rec.interimResults = false
+    rec.lang = 'en-US'
+
+    rec.onresult = (event: SpeechRecognitionEventLike) => {
+      const results = event.results
+      if (!results || results.length === 0) return
+      const last = results[results.length - 1]
+      const text = last?.[0]?.transcript
+      if (typeof text === 'string') appendTranscriptChunk(text)
+    }
+    rec.onerror = () => {
+      // Leave whisperStatus as-is; SpeechRecognition is best-effort
+    }
+    rec.onend = () => {
+      isSpeechRecRunningRef.current = false
+      // auto-restart while call is active
+      if (callStatus !== 'ended') {
+        try { rec.start(); isSpeechRecRunningRef.current = true } catch {}
+      }
+    }
+
+    speechRecRef.current = rec
+    try {
+      rec.start()
+      isSpeechRecRunningRef.current = true
+    } catch {}
+  }, [appendTranscriptChunk, callStatus])
+
+  const stopSpeechRecognitionFallback = useCallback(() => {
+    isSpeechRecRunningRef.current = false
+    try { speechRecRef.current?.stop?.() } catch {}
+    speechRecRef.current = null
+  }, [])
 
   useEffect(() => {
     const worker = new Worker('/whisper-worker.js', { type: 'module' })
-    worker.onmessage = (e) => {
+    worker.onmessage = (e: MessageEvent<{ status: string; text?: string; error?: string }>) => {
       if (e.data.status === 'loading') { setWhisperStatus('sending'); return }
+      if (e.data.status === 'error') {
+        setWhisperStatus('err')
+        // If Whisper fails to load/transcribe, try free browser fallback
+        startSpeechRecognitionFallback()
+        return
+      }
       if (e.data.status === 'done' && e.data.text?.trim()) {
-        const chunk = `[${role}] ${e.data.text.trim()}\n`
-        setTranscript(p => { const next = p + chunk; transcriptRef.current = next; return next })
-        socketRef.current?.emit('transcript-chunk', { chunk, roomId })
+        decodeFailCountRef.current = 0
+        appendTranscriptChunk(e.data.text)
         setWhisperStatus('ok')
       }
     }
     workerRef.current = worker
     return () => worker.terminate()
-  }, [])
+  }, [appendTranscriptChunk, startSpeechRecognitionFallback])
 
   const flushChunk = useCallback(async () => {
     if (chunksRef.current.length === 0) return
@@ -138,11 +204,24 @@ export default function RoomPage() {
     chunksRef.current = []
     if (blob.size < 1000) return
     setWhisperStatus('sending')
-    // Don't decode — send the raw blob URL to the worker instead
     const arrayBuffer = await blob.arrayBuffer()
-    workerRef.current?.postMessage({ audioData: arrayBuffer, sampleRate: 16000 }, [arrayBuffer])
-      }, [role, roomId])
-
+    const audioCtx = new AudioContext({ sampleRate: 16000 })
+    try {
+      const decoded = await audioCtx.decodeAudioData(arrayBuffer)
+      // IMPORTANT: copy out PCM before transferring, to avoid transferring a view
+      const pcm = new Float32Array(decoded.getChannelData(0))
+      workerRef.current?.postMessage({ audioData: pcm, sampleRate: 16000 }, [pcm.buffer])
+    } catch {
+      // webm chunk too short to decode yet — skip
+      decodeFailCountRef.current += 1
+      if (decodeFailCountRef.current >= 3 && !transcriptRef.current.trim()) {
+        setWhisperStatus('err')
+        startSpeechRecognitionFallback()
+      }
+    } finally {
+      audioCtx.close()
+    }
+  }, [startSpeechRecognitionFallback]) 
   const startWhisperRecording = useCallback((stream: MediaStream) => {
     if (isRecordingRef.current) return
 
@@ -187,6 +266,27 @@ export default function RoomPage() {
     setIsRecording(false)
   }, [flushChunk])
 
+  // ── Camera ────────────────────────────────────────────────────
+  const cameraInitRef = useRef(false)
+  useEffect(() => {
+    if (cameraInitRef.current) return
+    cameraInitRef.current = true
+
+    getCameraStream().then(stream => {
+      setLocalStream(stream)
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream
+      setCallStatus('connecting')
+    }).catch(err => {
+      console.error('Camera error:', err)
+      setCallStatus('connecting')
+    })
+
+    return () => {
+      stopWhisperRecording()
+      if (durationRef.current) clearInterval(durationRef.current)
+    }
+  }, [stopWhisperRecording])
+
   // Auto-start recording once local stream is ready
   useEffect(() => {
     if (localStream) startWhisperRecording(localStream)
@@ -219,6 +319,7 @@ export default function RoomPage() {
   // ── End call ──────────────────────────────────────────────────
   async function endCall() {
     await stopWhisperRecording()
+    stopSpeechRecognitionFallback()
     localStream?.getTracks().forEach(t => t.stop())
     if (durationRef.current) clearInterval(durationRef.current)
     setCallStatus('ended')

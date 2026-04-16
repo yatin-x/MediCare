@@ -1,4 +1,4 @@
-import { pipeline, read_audio } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
+import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2'
 
 let transcriber = null
 
@@ -7,26 +7,25 @@ self.onmessage = async (e) => {
 
   if (!transcriber) {
     self.postMessage({ status: 'loading' })
-    transcriber = await pipeline(
-      'automatic-speech-recognition',
-      'Xenova/whisper-tiny.en'
-    )
+    try {
+      transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en')
+    } catch (err) {
+      console.error('Worker model load error:', err)
+      self.postMessage({ status: 'error', error: 'model_load_failed' })
+      return
+    }
   }
 
   try {
-    // Pass the raw ArrayBuffer blob — Transformers.js handles webm/opus internally
-    const blob = new Blob([audioData], { type: 'audio/webm' })
-    const url = URL.createObjectURL(blob)
-    
-    const result = await transcriber(url, {
+    // Pass Float32Array directly — no AudioContext needed in worker
+    const result = await transcriber(audioData, {
+      sampling_rate: sampleRate,
       chunk_length_s: 30,
       stride_length_s: 5,
     })
-    
-    URL.revokeObjectURL(url)
     self.postMessage({ status: 'done', text: result.text })
   } catch (err) {
     console.error('Worker transcription error:', err)
-    self.postMessage({ status: 'done', text: '' })
+    self.postMessage({ status: 'error', error: 'transcribe_failed' })
   }
 }

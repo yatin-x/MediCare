@@ -13,7 +13,7 @@ interface WebRTCState {
   remoteStream: MediaStream | null
   connectionState: 'idle' | 'connecting' | 'connected' | 'disconnected'
   peerJoined: boolean
-  socket: any
+  socket: Socket | null
 }
 
 export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTCState {
@@ -26,6 +26,11 @@ export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTC
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
   const [connectionState, setConnectionState] = useState<WebRTCState['connectionState']>('idle')
   const [peerJoined, setPeerJoined] = useState(false)
+  const [socket, setSocket] = useState<Socket | null>(null)
+
+  // Track remote socket ID
+  const remoteIdRef = useRef<string | null>(null)
+  const getRemoteId = () => remoteIdRef.current
 
   // ── Create RTCPeerConnection ───────────────────────────────
   const createPC = useCallback(() => {
@@ -84,10 +89,6 @@ export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTC
     return pc
   }, [localStream, roomId])
 
-  // Track remote socket ID
-  const remoteIdRef = useRef<string | null>(null)
-  const getRemoteId = () => remoteIdRef.current
-
   // ── Main WebRTC setup ──────────────────────────────────────
   useEffect(() => {
     if (!localStream || !roomId) return
@@ -96,13 +97,22 @@ export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTC
       transports: ['websocket']
     })
     socketRef.current = socket
+    const handleConnect = () => {
+      setSocket(socket)
+      setConnectionState('connecting')
+    }
+    const handleDisconnect = () => {
+      setSocket(null)
+      setConnectionState('disconnected')
+    }
+    socket.on('connect', handleConnect)
+    socket.on('disconnect', handleDisconnect)
 
     const pc = createPC()
     pcRef.current = pc
 
     // Join room
     socket.emit('join-room', { roomId, role })
-    setConnectionState('connecting')
 
     // ── Someone already in room — we initiate offer ──────────
     socket.on('room-peers', async (peers: Array<{ role: string; socketId: string }>) => {
@@ -169,6 +179,8 @@ export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTC
     return () => {
       if (socketRef.current) {
         socketRef.current.emit('leave-room', { roomId })
+        socketRef.current.off('connect', handleConnect)
+        socketRef.current.off('disconnect', handleDisconnect)
         socketRef.current.disconnect()
       }
       if (pcRef.current) {
@@ -177,5 +189,5 @@ export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTC
     }
   }, [localStream, roomId, role, createPC])
 
-  return { remoteStream, connectionState, peerJoined, socket: socketRef.current }
+  return { remoteStream, connectionState, peerJoined, socket }
 }
