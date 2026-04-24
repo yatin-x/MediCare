@@ -13,7 +13,6 @@ from pathlib import Path
 
 MODEL_DIR = Path(__file__).parent / "model"
 
-# ── 1. File presence check ────────────────────────────────────────────────────
 print("=" * 55)
 print("MedAssist ML Model — Pre-flight Check")
 print("=" * 55)
@@ -39,7 +38,6 @@ if missing:
 
 print()
 
-# ── 2. Load artifacts ─────────────────────────────────────────────────────────
 print("Loading model pipeline...", end=" ")
 with open(MODEL_DIR / "urgency_model.pkl", "rb") as f:
     model = pickle.load(f)
@@ -52,15 +50,12 @@ if (MODEL_DIR / "model_info.json").exists():
 
 print(f"Classes in model: {list(model.classes_)}")
 print()
-
-# ── 3. Preprocessing ──────────────────────────────────────────────────────────
 def preprocess(text: str) -> str:
     text = text.lower()
     text = re.sub(r"[^\w\s]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
-# ── 4. Sample predictions ─────────────────────────────────────────────────────
 test_cases = [
     (
         "Patient reports mild headache and fatigue for two days. No fever. "
