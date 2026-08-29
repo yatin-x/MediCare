@@ -7,7 +7,8 @@
     "dev": "node server.js",
     "build": "next build",
     "start": "NODE_ENV=production node server.js",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test lib/agent/pure.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",

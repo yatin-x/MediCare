@@ -17,8 +17,8 @@
 
 import * as runtime from "@prisma/client/runtime/index-browser"
 
-export type * from '../models'
-export type * from './prismaNamespace'
+export type * from '../models.ts'
+export type * from './prismaNamespace.ts'
 
 export const Decimal = runtime.Decimal
 
@@ -54,7 +54,12 @@ export const ModelName = {
   User: 'User',
   Patient: 'Patient',
   Appointment: 'Appointment',
-  Visit: 'Visit'
+  Visit: 'Visit',
+  VisitEvent: 'VisitEvent',
+  AgentRun: 'AgentRun',
+  AgentStep: 'AgentStep',
+  ToolCall: 'ToolCall',
+  Approval: 'Approval'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -101,6 +106,7 @@ export const PatientScalarFieldEnum = {
   allergies: 'allergies',
   notes: 'notes',
   doctorId: 'doctorId',
+  userId: 'userId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -140,6 +146,10 @@ export const VisitScalarFieldEnum = {
   urgency: 'urgency',
   confidence: 'confidence',
   summary: 'summary',
+  soapDraft: 'soapDraft',
+  patientSummary: 'patientSummary',
+  noteStatus: 'noteStatus',
+  claims: 'claims',
   status: 'status',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
@@ -151,12 +161,93 @@ export const VisitScalarFieldEnum = {
 export type VisitScalarFieldEnum = (typeof VisitScalarFieldEnum)[keyof typeof VisitScalarFieldEnum]
 
 
+export const VisitEventScalarFieldEnum = {
+  id: 'id',
+  visitId: 'visitId',
+  type: 'type',
+  role: 'role',
+  payload: 'payload',
+  createdAt: 'createdAt'
+} as const
+
+export type VisitEventScalarFieldEnum = (typeof VisitEventScalarFieldEnum)[keyof typeof VisitEventScalarFieldEnum]
+
+
+export const AgentRunScalarFieldEnum = {
+  id: 'id',
+  visitId: 'visitId',
+  goal: 'goal',
+  status: 'status',
+  plan: 'plan',
+  result: 'result',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AgentRunScalarFieldEnum = (typeof AgentRunScalarFieldEnum)[keyof typeof AgentRunScalarFieldEnum]
+
+
+export const AgentStepScalarFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  agent: 'agent',
+  thought: 'thought',
+  action: 'action',
+  createdAt: 'createdAt'
+} as const
+
+export type AgentStepScalarFieldEnum = (typeof AgentStepScalarFieldEnum)[keyof typeof AgentStepScalarFieldEnum]
+
+
+export const ToolCallScalarFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  tool: 'tool',
+  input: 'input',
+  output: 'output',
+  latencyMs: 'latencyMs',
+  ok: 'ok',
+  createdAt: 'createdAt'
+} as const
+
+export type ToolCallScalarFieldEnum = (typeof ToolCallScalarFieldEnum)[keyof typeof ToolCallScalarFieldEnum]
+
+
+export const ApprovalScalarFieldEnum = {
+  id: 'id',
+  visitId: 'visitId',
+  runId: 'runId',
+  type: 'type',
+  status: 'status',
+  payload: 'payload',
+  decidedAt: 'decidedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type ApprovalScalarFieldEnum = (typeof ApprovalScalarFieldEnum)[keyof typeof ApprovalScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
 } as const
 
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
+
+
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {
@@ -173,4 +264,13 @@ export const NullsOrder = {
 } as const
 
 export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
+
+
+export const JsonNullValueFilter = {
+  DbNull: DbNull,
+  JsonNull: JsonNull,
+  AnyNull: AnyNull
+} as const
+
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 

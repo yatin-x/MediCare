@@ -20,7 +20,8 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   appointments Appointment[]
-  patients     Patient[]
+  patients     Patient[]      @relation("DoctorPatients")
+  patientChart Patient?       @relation("PatientLogin")
   visits       Visit[]
 }
 
@@ -34,11 +35,13 @@ model Patient {
   bloodGroup   String?
   allergies    String[]      @default([])
   notes        String?
-  doctorId     String
+  doctorId     String?
+  userId       String?       @unique
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   appointments Appointment[]
-  doctor       User          @relation(fields: [doctorId], references: [id])
+  doctor       User?         @relation("DoctorPatients", fields: [doctorId], references: [id])
+  user         User?         @relation("PatientLogin", fields: [userId], references: [id])
   visits       Visit[]
 }
 
@@ -74,6 +77,10 @@ model Visit {
   urgency       String?
   confidence    Float?
   summary       String?
+  soapDraft       String?
+  patientSummary  String?
+  noteStatus      String       @default("draft")
+  claims        Json?
   status        String       @default("active")
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -83,4 +90,71 @@ model Visit {
   appointment   Appointment? @relation(fields: [appointmentId], references: [id])
   doctor        User         @relation(fields: [doctorId], references: [id])
   patient       Patient?     @relation(fields: [patientId], references: [id])
+  events        VisitEvent[]
+  agentRuns     AgentRun[]
+  approvals     Approval[]
+}
+
+model VisitEvent {
+  id        String   @id @default(uuid())
+  visitId   String
+  type      String
+  role      String?
+  payload   String
+  createdAt DateTime @default(now())
+  visit     Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@index([visitId, createdAt])
+}
+
+model AgentRun {
+  id        String      @id @default(uuid())
+  visitId   String
+  goal      String
+  status    String
+  plan      Json?
+  result    Json?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  visit     Visit       @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  steps     AgentStep[]
+  toolCalls ToolCall[]
+  approvals Approval[]
+
+  @@index([visitId])
+}
+
+model AgentStep {
+  id        String   @id @default(uuid())
+  runId     String
+  agent     String
+  thought   String?
+  action    String
+  createdAt DateTime @default(now())
+  run       AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model ToolCall {
+  id        String   @id @default(uuid())
+  runId     String
+  tool      String
+  input     Json
+  output    Json
+  latencyMs Int
+  ok        Boolean
+  createdAt DateTime @default(now())
+  run       AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model Approval {
+  id        String    @id @default(uuid())
+  visitId   String
+  runId     String?
+  type      String
+  status    String    @default("pending")
+  payload   Json
+  decidedAt DateTime?
+  createdAt DateTime  @default(now())
+  visit     Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  run       AgentRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
 }

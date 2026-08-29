@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { useWebRTC } from '@/lib/useWebRTC'
+import { useLiveTranscript, type AsrStatus } from '@/lib/useLiveTranscript'
+import { isUnusableTranscriptChunk } from '@/lib/agent/grounding'
 import type { Socket } from 'socket.io-client'
 
 type UrgencyLevel = 'low' | 'medium' | 'high'
@@ -10,6 +12,11 @@ interface AnalysisResult {
   urgency: UrgencyLevel
   confidence: number
   summary: string
+  visitId?: string
+  auditorFlags?: string[]
+  visitNumber?: number
+  priorLines?: string[]
+  patientSummary?: string
   extracted: {
     symptoms: string[]
     medicines: string[]
@@ -18,29 +25,11 @@ interface AnalysisResult {
   }
 }
 
-const CHUNK_INTERVAL_MS = 5_000 // send audio to Whisper every 10s
-
-type SpeechRecognitionAlternativeLike = { transcript?: string }
-type SpeechRecognitionEventLike = {
-  results?: ArrayLike<ArrayLike<SpeechRecognitionAlternativeLike>>
-}
-type SpeechRecognitionLike = {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  start: () => void
-  stop: () => void
-  onresult: ((event: SpeechRecognitionEventLike) => void) | null
-  onerror: ((event: unknown) => void) | null
-  onend: (() => void) | null
-}
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
-
-declare global {
-  interface Window {
-    webkitSpeechRecognition?: SpeechRecognitionConstructor
-    SpeechRecognition?: SpeechRecognitionConstructor
-  }
+type VisitContext = {
+  visitNumber: number
+  patientName: string | null
+  allergies: string[]
+  priorVisits: Array<{ id: string; line: string }>
 }
 
 export default function RoomPage() {
@@ -52,15 +41,18 @@ export default function RoomPage() {
   const role   = (searchParams.get('role') || 'doctor') as 'doctor' | 'patient'
   const name   = searchParams.get('name') || 'User'
 
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('medassist.roomId', roomId)
+      sessionStorage.setItem('medassist.role', role)
+    } catch { /* ignore */ }
+  }, [roomId, role])
+
   // ── Refs ──────────────────────────────────────────────────────
   const localVideoRef   = useRef<HTMLVideoElement>(null)
   const remoteVideoRef  = useRef<HTMLVideoElement>(null)
   const transcriptRef   = useRef('')
-  const recorderRef     = useRef<MediaRecorder | null>(null)
-  const chunksRef       = useRef<Blob[]>([])
-  const intervalRef     = useRef<NodeJS.Timeout | null>(null)
   const durationRef     = useRef<NodeJS.Timeout | null>(null)
-  const isRecordingRef  = useRef(false)
   const socketRef       = useRef<Socket | null>(null)
 
   // ── State ─────────────────────────────────────────────────────
@@ -74,7 +66,9 @@ export default function RoomPage() {
   const [analysis,      setAnalysis]      = useState<AnalysisResult | null>(null)
   const [isAnalyzing,   setIsAnalyzing]   = useState(false)
   const [copied,        setCopied]        = useState(false)
-  const [whisperStatus, setWhisperStatus] = useState<'idle'|'sending'|'ok'|'err'>('idle')
+  const [whisperStatus, setWhisperStatus] = useState<AsrStatus>('idle')
+  const [typedLine, setTypedLine] = useState('')
+  const [visitCtx, setVisitCtx] = useState<VisitContext | null>(null)
 
   // ── WebRTC ────────────────────────────────────────────────────
   const { remoteStream, connectionState, peerJoined, socket } = useWebRTC({
@@ -83,6 +77,22 @@ export default function RoomPage() {
 
   // keep socket in ref so recorder callback can reach it
   useEffect(() => { socketRef.current = socket }, [socket])
+
+  useEffect(() => {
+    if (role !== 'doctor') return
+    fetch(`/api/visits/context?roomId=${encodeURIComponent(roomId)}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!d) return
+        setVisitCtx({
+          visitNumber: d.visitNumber,
+          patientName: d.patientName,
+          allergies: d.allergies ?? [],
+          priorVisits: (d.priorVisits ?? []).map((p: { id: string; line: string }) => ({ id: p.id, line: p.line })),
+        })
+      })
+      .catch(() => {})
+  }, [roomId, role])
 
   // bind remote video
   useEffect(() => {
@@ -96,6 +106,7 @@ export default function RoomPage() {
   useEffect(() => {
     if (!socket) return
     const handler = ({ chunk }: { chunk: string }) => {
+      if (isUnusableTranscriptChunk(chunk)) return
       setTranscript(p => {
         const next = p + chunk
         transcriptRef.current = next
@@ -114,160 +125,39 @@ export default function RoomPage() {
     return () => { if (durationRef.current) clearInterval(durationRef.current) }
   }, [callStatus])
 
-  // ── Whisper recording ─────────────────────────────────────────
-  // Uses MediaRecorder on the SAME stream WebRTC already holds.
-  // No mic conflict because MediaRecorder reads from the existing track.
-
-  const workerRef = useRef<Worker | null>(null)
-  const decodeFailCountRef = useRef(0)
-
-  // Free fallback (Chrome/Edge): Web Speech API
-  const speechRecRef = useRef<SpeechRecognitionLike | null>(null)
-  const isSpeechRecRunningRef = useRef(false)
-
-  const appendTranscriptChunk = useCallback((raw: string) => {
-    const text = raw.trim()
-    if (!text) return
-    const chunk = `[${role}] ${text}\n`
+  const appendChunk = useCallback((chunk: string) => {
+    if (isUnusableTranscriptChunk(chunk)) return
+    const line = chunk.includes('[') ? chunk : `[${role}] ${chunk.trim()}\n`
     setTranscript(p => {
-      const next = p + chunk
+      const next = p + line
       transcriptRef.current = next
       return next
     })
-    socketRef.current?.emit('transcript-chunk', { chunk, roomId })
-  }, [role, roomId])
+    socketRef.current?.emit('transcript-chunk', { chunk: line, roomId })
+    void fetch('/api/visits/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId, type: 'transcript_chunk', role, payload: line }),
+    }).catch(() => {})
+  }, [roomId, role])
 
-  const startSpeechRecognitionFallback = useCallback(() => {
-    if (isSpeechRecRunningRef.current) return
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) return
-
-    const rec = new SpeechRecognition()
-    rec.continuous = true
-    rec.interimResults = false
-    rec.lang = 'en-US'
-
-    rec.onresult = (event: SpeechRecognitionEventLike) => {
-      const results = event.results
-      if (!results || results.length === 0) return
-      const last = results[results.length - 1]
-      const text = last?.[0]?.transcript
-      if (typeof text === 'string') appendTranscriptChunk(text)
-    }
-    rec.onerror = () => {
-      // Leave whisperStatus as-is; SpeechRecognition is best-effort
-    }
-    rec.onend = () => {
-      isSpeechRecRunningRef.current = false
-      // auto-restart while call is active
-      if (callStatus !== 'ended') {
-        try { rec.start(); isSpeechRecRunningRef.current = true } catch {}
-      }
-    }
-
-    speechRecRef.current = rec
-    try {
-      rec.start()
-      isSpeechRecRunningRef.current = true
-    } catch {}
-  }, [appendTranscriptChunk, callStatus])
-
-  const stopSpeechRecognitionFallback = useCallback(() => {
-    isSpeechRecRunningRef.current = false
-    try { speechRecRef.current?.stop?.() } catch {}
-    speechRecRef.current = null
+  const onAsrStatus = useCallback((s: AsrStatus) => {
+    setWhisperStatus(s)
+    setIsRecording(s === 'ok' || s === 'loading')
   }, [])
 
-  useEffect(() => {
-    const worker = new Worker('/whisper-worker.js', { type: 'module' })
-    worker.onmessage = (e: MessageEvent<{ status: string; text?: string; error?: string }>) => {
-      if (e.data.status === 'loading') { setWhisperStatus('sending'); return }
-      if (e.data.status === 'error') {
-        setWhisperStatus('err')
-        // If Whisper fails to load/transcribe, try free browser fallback
-        startSpeechRecognitionFallback()
-        return
-      }
-      if (e.data.status === 'done' && e.data.text?.trim()) {
-        decodeFailCountRef.current = 0
-        appendTranscriptChunk(e.data.text)
-        setWhisperStatus('ok')
-      }
-    }
-    workerRef.current = worker
-    return () => worker.terminate()
-  }, [appendTranscriptChunk, startSpeechRecognitionFallback])
+  useLiveTranscript({
+    roomId,
+    role,
+    stream: localStream,
+    active: Boolean(localStream) && callStatus !== 'ended',
+    onChunk: appendChunk,
+    onStatus: onAsrStatus,
+  })
 
-  const flushChunk = useCallback(async () => {
-    if (chunksRef.current.length === 0) return
-    const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-    chunksRef.current = []
-    if (blob.size < 1000) return
-    setWhisperStatus('sending')
-    const arrayBuffer = await blob.arrayBuffer()
-    const audioCtx = new AudioContext({ sampleRate: 16000 })
-    try {
-      const decoded = await audioCtx.decodeAudioData(arrayBuffer)
-      // IMPORTANT: copy out PCM before transferring, to avoid transferring a view
-      const pcm = new Float32Array(decoded.getChannelData(0))
-      workerRef.current?.postMessage({ audioData: pcm, sampleRate: 16000 }, [pcm.buffer])
-    } catch {
-      // webm chunk too short to decode yet — skip
-      decodeFailCountRef.current += 1
-      if (decodeFailCountRef.current >= 3 && !transcriptRef.current.trim()) {
-        setWhisperStatus('err')
-        startSpeechRecognitionFallback()
-      }
-    } finally {
-      audioCtx.close()
-    }
-  }, [startSpeechRecognitionFallback]) 
-  const startWhisperRecording = useCallback((stream: MediaStream) => {
-    if (isRecordingRef.current) return
-
-    const audioTrack = stream.getAudioTracks()[0]
-    if (!audioTrack) {
-      console.warn('No audio track found for Whisper')
-      return
-    }
-
-    isRecordingRef.current = true
-
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-      ? 'audio/webm;codecs=opus'
-      : 'audio/webm'
-
-    const audioStream = new MediaStream([audioTrack])
-    const recorder = new MediaRecorder(audioStream, { mimeType })
-    recorderRef.current = recorder
-    chunksRef.current   = []
-
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data)
-    }
-
-    recorder.start(1000) // collect 1s blobs internally
-
-    // flush to Whisper every CHUNK_INTERVAL_MS
-    intervalRef.current = setInterval(flushChunk, CHUNK_INTERVAL_MS)
-
-    setIsRecording(true)
-    console.log('🎙️ Whisper recording started')
-  }, [flushChunk])
-
-  const stopWhisperRecording = useCallback(async () => {
-    isRecordingRef.current = false
-    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
-    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
-      recorderRef.current.stop()
-    }
-    recorderRef.current = null
-    await flushChunk()   // flush any remaining audio
-    setIsRecording(false)
-  }, [flushChunk])
-
-  // ── Camera ────────────────────────────────────────────────────
+  // ── Camera ────────────────────────────────────────
   const cameraInitRef = useRef(false)
+
   useEffect(() => {
     if (cameraInitRef.current) return
     cameraInitRef.current = true
@@ -280,17 +170,7 @@ export default function RoomPage() {
       console.error('Camera error:', err)
       setCallStatus('connecting')
     })
-
-    return () => {
-      stopWhisperRecording()
-      if (durationRef.current) clearInterval(durationRef.current)
-    }
-  }, [stopWhisperRecording])
-
-  // Auto-start recording once local stream is ready
-  useEffect(() => {
-    if (localStream) startWhisperRecording(localStream)
-  }, [localStream, startWhisperRecording])
+  }, [])
 
   // ── Controls ──────────────────────────────────────────────────
   function toggleMic() {
@@ -318,38 +198,41 @@ export default function RoomPage() {
 
   // ── End call ──────────────────────────────────────────────────
   async function endCall() {
-    await stopWhisperRecording()
-    stopSpeechRecognitionFallback()
     localStream?.getTracks().forEach(t => t.stop())
     if (durationRef.current) clearInterval(durationRef.current)
     setCallStatus('ended')
     setIsAnalyzing(true)
+    setIsRecording(false)
 
     const finalTranscript = transcriptRef.current.trim()
-    console.log('🏁 FINAL TRANSCRIPT:\n', finalTranscript || '(empty)')
-
-    if (!finalTranscript) {
-      setAnalysis({
-        urgency: 'low', confidence: 1.0,
-        summary: 'No conversation was recorded. Check microphone permissions.',
-        extracted: { symptoms: [], medicines: [], advice: [], duration: null }
-      })
-      setIsAnalyzing(false)
-      return
-    }
 
     try {
-      const res  = await fetch('/api/analyze', {
+      const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roomId, transcript: finalTranscript })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Analysis failed')
-      setAnalysis({ urgency: data.urgency, confidence: data.confidence, summary: data.summary, extracted: data.extracted })
+      setAnalysis({
+        urgency: data.urgency,
+        confidence: data.confidence,
+        summary: data.summary,
+        extracted: data.extracted,
+        visitId: data.visitId,
+        auditorFlags: data.auditorFlags,
+        visitNumber: data.visitNumber,
+        priorLines: data.priorLines,
+        patientSummary: data.patientSummary,
+      })
     } catch (err) {
       console.error(err)
-      setAnalysis({ urgency: 'low', confidence: 0.5, summary: 'Analysis failed. Try again.', extracted: { symptoms: [], medicines: [], advice: [], duration: null } })
+      setAnalysis({
+        urgency: 'low',
+        confidence: 0.5,
+        summary: 'Analysis failed. Try again.',
+        extracted: { symptoms: [], medicines: [], advice: [], duration: null }
+      })
     } finally {
       setIsAnalyzing(false)
     }
@@ -372,19 +255,36 @@ export default function RoomPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
             <div>
               <h1 className="font-display" style={{ fontSize: '1.8rem' }}>Consultation Summary</h1>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>Room {roomId} · {formatDuration(callDuration)}</p>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
+                Room {roomId} · {formatDuration(callDuration)}
+                {analysis?.visitNumber ? ` · visit #${analysis.visitNumber}` : ''}
+              </p>
             </div>
-            <button onClick={() => router.push('/dashboard')}
-              style={{ padding: '8px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-              Dashboard →
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {role === 'doctor' && analysis?.visitId && (
+                <button onClick={() => router.push(`/visit/${analysis.visitId}`)}
+                  style={{ padding: '8px 18px', background: 'var(--accent-dim)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--accent)', cursor: 'pointer' }}>
+                  Doctor cockpit
+                </button>
+              )}
+              {role === 'patient' && analysis?.visitId && (
+                <button onClick={() => router.push(`/report/${analysis.visitId}`)}
+                  style={{ padding: '8px 18px', background: 'var(--accent-dim)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--accent)', cursor: 'pointer' }}>
+                  View report
+                </button>
+              )}
+              <button onClick={() => router.push(role === 'patient' ? '/patient/visits' : '/dashboard')}
+                style={{ padding: '8px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                {role === 'patient' ? 'My visit history →' : 'Dashboard →'}
+              </button>
+            </div>
           </div>
 
           {isAnalyzing ? (
             <div className="glass" style={{ padding: '60px', textAlign: 'center' }}>
               <div style={{ fontSize: '52px', marginBottom: '16px' }}>🧠</div>
               <p style={{ color: 'var(--accent)', fontSize: '16px', fontWeight: 600 }}>Analyzing consultation...</p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '8px' }}>Running NLP pipeline + ML classification</p>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '8px' }}>Encounter orchestrator: observe → plan → tools → verify</p>
             </div>
           ) : analysis ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -401,10 +301,29 @@ export default function RoomPage() {
                 )
               })()}
 
+              {analysis.patientSummary && (
+                <div className="glass" style={{ padding: '20px 24px' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Patient care summary</p>
+                  <p style={{ color: 'var(--text-primary)', lineHeight: 1.75, fontSize: '15px', whiteSpace: 'pre-wrap' }}>{analysis.patientSummary}</p>
+                </div>
+              )}
+
               <div className="glass" style={{ padding: '20px 24px' }}>
                 <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>📋 Visit Summary</p>
-                <p style={{ color: 'var(--text-primary)', lineHeight: 1.75, fontSize: '15px' }}>{analysis.summary}</p>
+                <p style={{ color: 'var(--text-primary)', lineHeight: 1.75, fontSize: '15px', whiteSpace: 'pre-wrap' }}>{analysis.summary}</p>
+                {analysis.auditorFlags && analysis.auditorFlags.length > 0 && (
+                  <p style={{ marginTop: 10, fontSize: 13, color: '#f59e0b' }}>Auditor: {analysis.auditorFlags.join('; ')}</p>
+                )}
               </div>
+
+              {analysis.priorLines && analysis.priorLines.length > 0 && (
+                <div className="glass" style={{ padding: '20px 24px' }}>
+                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Prior visits</p>
+                  {analysis.priorLines.map(line => (
+                    <p key={line} style={{ fontSize: 13, marginBottom: 6, color: 'var(--text-secondary)' }}>{line}</p>
+                  ))}
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 {[
@@ -446,7 +365,7 @@ export default function RoomPage() {
     ? { text: 'Establishing P2P...', color: '#f59e0b' }
     : { text: 'Waiting for peer...', color: 'var(--text-muted)' }
 
-  const whisperDot = { idle: '#666', sending: '#f59e0b', ok: '#10b981', err: '#ef4444' }[whisperStatus]
+  const whisperDot = { idle: '#666', loading: '#f59e0b', ok: '#10b981', err: '#ef4444' }[whisperStatus]
 
   return (
     <main style={{ height: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -457,15 +376,24 @@ export default function RoomPage() {
           <span className="font-display" style={{ fontSize: '1.15rem', color: 'var(--accent)' }}>⚕ MedAssist</span>
           <span style={{ width: 1, height: 18, background: 'var(--border)' }} />
           <span className="font-mono" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{roomId}</span>
+          {role === 'doctor' && visitCtx && (
+            <span style={{ fontSize: '12px', color: 'var(--accent)' }}>
+              {visitCtx.patientName} · visit #{visitCtx.visitNumber}
+              {visitCtx.priorVisits.length ? ` · ${visitCtx.priorVisits.length} prior` : ' · first visit'}
+            </span>
+          )}
           <button onClick={copyRoomId} style={{ padding: '3px 10px', background: 'var(--accent-dim)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer' }}>
             {copied ? '✓ Copied' : 'Copy ID'}
           </button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {/* Whisper status indicator */}
+          {/* Audio Recording status indicator */}
           <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: whisperDot }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: whisperDot, display: 'inline-block' }} />
-            {whisperStatus === 'sending' ? 'Transcribing...' : isRecording ? 'Recording' : 'Whisper'}
+            {whisperStatus === 'ok' ? 'Listening' :
+              whisperStatus === 'loading' ? 'Whisper loading…' :
+              whisperStatus === 'err' ? 'Type below or use Chrome' :
+              isRecording ? 'Listening' : 'Transcript'}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: statusLabel.color }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: statusLabel.color, display: 'inline-block' }} />
@@ -521,15 +449,49 @@ export default function RoomPage() {
           )}
 
           {/* Live transcript overlay */}
-          <div style={{ position: 'absolute', top: 12, right: 12, width: '300px', maxHeight: '160px', background: 'rgba(0,0,0,0.82)', border: '1px solid #2a2a2a', borderRadius: '10px', padding: '10px 14px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
+          <div style={{ position: 'absolute', top: 12, right: 12, width: '320px', maxHeight: '280px', background: 'rgba(0,0,0,0.82)', border: '1px solid #2a2a2a', borderRadius: '10px', padding: '10px 14px', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
             <div style={{ fontSize: '10px', color: '#10b981', fontWeight: 700, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              🗣 Live Transcript
-              {whisperStatus === 'sending' && <span style={{ color: '#f59e0b', marginLeft: 6 }}>· sending to Whisper...</span>}
+              Live transcript
+              {whisperStatus === 'ok' && <span style={{ color: '#10b981', marginLeft: 6 }}>· mic</span>}
+              {whisperStatus === 'loading' && <span style={{ color: '#f59e0b', marginLeft: 6 }}>· downloading Whisper (free, once)</span>}
+              {whisperStatus === 'err' && <span style={{ color: '#f59e0b', marginLeft: 6 }}>· type lines to test</span>}
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', fontSize: '11px', color: '#ccc', fontFamily: 'monospace', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-              {transcript || <span style={{ color: '#555' }}>Whisper will transcribe every {CHUNK_INTERVAL_MS/1000}s...</span>}
+            <div style={{ flex: 1, overflowY: 'auto', fontSize: '11px', color: '#ccc', fontFamily: 'monospace', lineHeight: 1.6, whiteSpace: 'pre-wrap', minHeight: 48 }}>
+              {transcript || <span style={{ color: '#555' }}>Firefox has no Speech API — Whisper will start, or paste a test line below. Chrome/Edge: allow mic.</span>}
             </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                const t = typedLine.trim()
+                if (!t) return
+                appendChunk(t)
+                setTypedLine('')
+              }}
+              style={{ marginTop: 8, display: 'flex', gap: 6 }}
+            >
+              <input
+                value={typedLine}
+                onChange={e => setTypedLine(e.target.value)}
+                placeholder="Type a spoken line (free, always works)"
+                style={{ flex: 1, fontSize: 11, padding: '6px 8px', borderRadius: 6, border: '1px solid #333', background: '#111', color: '#eee' }}
+              />
+              <button type="submit" style={{ fontSize: 11, padding: '6px 10px', cursor: 'pointer' }}>Add</button>
+            </form>
           </div>
+
+          {role === 'doctor' && visitCtx && (visitCtx.priorVisits.length > 0 || visitCtx.allergies.length > 0) && (
+            <div style={{ position: 'absolute', bottom: 100, left: 12, width: 280, maxHeight: 180, overflowY: 'auto', background: 'rgba(0,0,0,0.82)', border: '1px solid #2a2a2a', borderRadius: 10, padding: '10px 12px', zIndex: 10 }}>
+              <div style={{ fontSize: 10, color: '#38bdf8', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase' }}>
+                Chart · visit #{visitCtx.visitNumber}
+              </div>
+              {visitCtx.allergies.length > 0 && (
+                <p style={{ fontSize: 11, color: '#f59e0b', marginBottom: 6 }}>Allergies: {visitCtx.allergies.join(', ')}</p>
+              )}
+              {visitCtx.priorVisits.map(p => (
+                <p key={p.id} style={{ fontSize: 11, color: '#ccc', marginBottom: 4, lineHeight: 1.4 }}>{p.line}</p>
+              ))}
+            </div>
+          )}
 
           {/* Bottom controls */}
           <div style={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 24px', background: 'rgba(10,15,30,0.75)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '100px', backdropFilter: 'blur(12px)' }}>

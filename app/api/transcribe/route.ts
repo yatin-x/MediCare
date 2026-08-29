@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const result = await response.json()
     const text   = result.text?.trim() ?? ''
 
-    return NextResponse.json({ text: text ? `[${role}] ${text}\n` : '' })
+    return NextResponse.json({ transcript: text })
   } catch (err) {
     console.error('Transcribe route error:', err)
     return NextResponse.json({ text: '' })

@@ -8,8 +8,13 @@
  *
  * 🟢 You can import this file directly.
  */
-export type * from './models/User'
-export type * from './models/Patient'
-export type * from './models/Appointment'
-export type * from './models/Visit'
-export type * from './commonInputTypes'
+export type * from './models/User.ts'
+export type * from './models/Patient.ts'
+export type * from './models/Appointment.ts'
+export type * from './models/Visit.ts'
+export type * from './models/VisitEvent.ts'
+export type * from './models/AgentRun.ts'
+export type * from './models/AgentStep.ts'
+export type * from './models/ToolCall.ts'
+export type * from './models/Approval.ts'
+export type * from './commonInputTypes.ts'

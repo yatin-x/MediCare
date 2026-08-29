@@ -1,20 +1,27 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 interface Visit {
   id: string
   roomId: string
-  doctorName: string
-  patientName: string
+  doctorName: string | null
+  patientName: string | null
   symptoms: string[]
   medicines: string[]
-  urgency: string
-  confidence: number
-  summary: string
+  advice: string[]
+  duration: string | null
+  urgency: string | null
+  confidence: number | null
+  summary: string | null
+  soapDraft: string | null
+  patientSummary?: string | null
+  report: string | null
   status: string
   createdAt: string
+  visitNumber?: number
 }
 
 const urgencyConfig: Record<string, { color: string; bg: string; border: string; icon: string }> = {
@@ -23,20 +30,119 @@ const urgencyConfig: Record<string, { color: string; bg: string; border: string;
   high:   { color: '#ef4444', bg: '#ef444412', border: '#ef444430', icon: '🔴' },
 }
 
-export default function DashboardPage() {
+function DashboardInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { data: session, status } = useSession()
+  const roomFromUrl = searchParams.get('roomId')?.trim().toUpperCase() || ''
+
+  const [roomLookup, setRoomLookup] = useState(roomFromUrl)
+  const [mode, setMode] = useState<'doctor' | 'patient' | null>(null)
+  const [patientName, setPatientName] = useState<string | null>(null)
   const [visits, setVisits] = useState<Visit[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [selected, setSelected] = useState<Visit | null>(null)
   const [filter, setFilter] = useState<'all' | 'low' | 'medium' | 'high'>('all')
+  const [appointments, setAppointments] = useState<Array<{
+    id: string
+    scheduledAt: string
+    status: string
+    reason: string | null
+    patient: { name: string }
+    visit: { roomId: string } | null
+  }>>([])
+  const [walkInName, setWalkInName] = useState('')
+  const [walkInAllergies, setWalkInAllergies] = useState('')
+  const [starting, setStarting] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/visits')
-      .then(r => r.json())
-      .then(d => { setVisits(d.visits || []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [])
+    if (status === 'authenticated' && session?.user?.role === 'patient') {
+      router.replace('/patient')
+    }
+  }, [status, session, router])
 
+  useEffect(() => {
+    if (roomFromUrl) setRoomLookup(roomFromUrl)
+  }, [roomFromUrl])
+
+  useEffect(() => {
+    const storedRole = typeof window !== 'undefined' ? sessionStorage.getItem('medassist.role') : null
+    const storedRoom = typeof window !== 'undefined' ? sessionStorage.getItem('medassist.roomId') : null
+    const roomId = roomFromUrl || (storedRole === 'patient' ? (storedRoom || '') : '')
+    if (roomId && !roomFromUrl) setRoomLookup(roomId)
+
+    const query = roomId ? `?roomId=${encodeURIComponent(roomId)}` : ''
+    setLoading(true)
+    setError('')
+    fetch(`/api/visits${query}`)
+      .then(async r => {
+        const d = await r.json()
+        if (!r.ok) throw new Error(d.error || 'Failed to load visits')
+        return d
+      })
+      .then(d => {
+        const list: Visit[] = d.visits || []
+        setMode(d.mode === 'patient' ? 'patient' : 'doctor')
+        setPatientName(d.patientName ?? null)
+        setVisits(list)
+        setSelected(list[0] ?? null)
+        setLoading(false)
+      })
+      .catch(e => {
+        setVisits([])
+        setSelected(null)
+        setMode(roomId ? 'patient' : null)
+        setError(e instanceof Error ? e.message : 'Failed to load')
+        setLoading(false)
+      })
+  }, [roomFromUrl, status])
+
+  useEffect(() => {
+    if (status !== 'authenticated' || session?.user?.role === 'patient') return
+    fetch('/api/appointments').then(r => r.json()).then(d => setAppointments(d.appointments ?? []))
+  }, [status, session])
+
+  async function startAppointment(id: string) {
+    setStarting(id)
+    const res = await fetch(`/api/appointments/${id}/start`, { method: 'POST' })
+    const data = await res.json()
+    setStarting(null)
+    if (!res.ok) {
+      setError(data.error || 'Could not start')
+      return
+    }
+    router.push(`/room/${data.roomId}?role=doctor&name=${encodeURIComponent(session?.user?.name || 'Doctor')}`)
+  }
+
+  async function walkIn() {
+    if (!walkInName.trim()) return
+    setStarting('walkin')
+    const res = await fetch('/api/room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patientName: walkInName, allergies: walkInAllergies }),
+    })
+    const data = await res.json()
+    setStarting(null)
+    if (!res.ok) {
+      setError(data.error || 'Could not create room')
+      return
+    }
+    router.push(`/room/${data.roomId}?role=doctor&name=${encodeURIComponent(session?.user?.name || 'Doctor')}`)
+  }
+
+  function lookupRoom(e: React.FormEvent) {
+    e.preventDefault()
+    const id = roomLookup.trim().toUpperCase()
+    if (!id) return
+    sessionStorage.setItem('medassist.roomId', id)
+    sessionStorage.setItem('medassist.role', 'patient')
+    router.push(`/dashboard?roomId=${encodeURIComponent(id)}`)
+  }
+
+  const isPatient = mode === 'patient'
+  const showPatientLookup = status !== 'authenticated'
   const filtered = filter === 'all' ? visits : visits.filter(v => v.urgency === filter)
 
   const counts = {
@@ -50,22 +156,82 @@ export default function DashboardPage() {
     return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
   }
 
+  function visitOrdinal(visit: Visit) {
+    return visit.visitNumber ?? 1
+  }
+
+  const reportText = selected ? (selected.patientSummary || selected.report || selected.soapDraft || selected.summary) : null
+
   return (
     <main style={{ minHeight: '100vh', background: 'var(--bg)', padding: '24px' }}>
       <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', gap: 16, flexWrap: 'wrap' }}>
           <div>
-            <h1 className="font-display" style={{ fontSize: '2rem', color: 'var(--text-primary)' }}>Visit History</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>All consultations · PostgreSQL records</p>
+            <h1 className="font-display" style={{ fontSize: '2rem', color: 'var(--text-primary)' }}>
+              {isPatient ? 'Your visit history' : 'Visit History'}
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
+              {isPatient
+                ? `${patientName ? `${patientName} · ` : ''}reports from your consultations`
+                : 'All consultations · PostgreSQL records'}
+            </p>
           </div>
-          <button onClick={() => router.push('/')} className="btn-primary">
-            + New Consultation
+          <button onClick={() => router.push('/')} style={{ padding: '8px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
+            Home
           </button>
         </div>
 
-        {/* Stats row */}
+        {session?.user?.role !== 'patient' && status === 'authenticated' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+            <div className="glass" style={{ padding: 18 }}>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>TODAY’S BOOKINGS</p>
+              {appointments.filter(a => a.status !== 'cancelled').length === 0 && (
+                <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No bookings yet. Patients book from their portal.</p>
+              )}
+              {appointments.filter(a => a.status !== 'cancelled').slice(0, 8).map(a => (
+                <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                  <div>
+                    <p style={{ fontSize: 14 }}>{a.patient.name}</p>
+                    <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{new Date(a.scheduledAt).toLocaleString('en-IN')} · {a.status}</p>
+                  </div>
+                  <button disabled={starting === a.id} onClick={() => startAppointment(a.id)} className="btn-primary" style={{ padding: '6px 12px', fontSize: 12 }}>
+                    {a.visit ? 'Open room' : (starting === a.id ? 'Starting…' : 'Start consult')}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="glass" style={{ padding: 18 }}>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>WALK-IN ROOM</p>
+              <input value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder="Patient name"
+                style={{ width: '100%', marginBottom: 8, padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
+              <input value={walkInAllergies} onChange={e => setWalkInAllergies(e.target.value)} placeholder="Allergies (optional)"
+                style={{ width: '100%', marginBottom: 10, padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
+              <button onClick={walkIn} disabled={!walkInName.trim() || starting === 'walkin'} className="btn-primary" style={{ width: '100%' }}>
+                {starting === 'walkin' ? 'Creating…' : 'Start walk-in'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showPatientLookup && (
+          <form onSubmit={lookupRoom} className="glass" style={{ padding: 16, marginBottom: 20, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <label style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Room ID</label>
+            <input
+              value={roomLookup}
+              onChange={e => setRoomLookup(e.target.value.toUpperCase())}
+              placeholder="e.g. A3F9B2C1"
+              className="font-mono"
+              style={{ flex: 1, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--accent)', letterSpacing: '0.08em' }}
+            />
+            <button type="submit" className="btn-primary" style={{ padding: '8px 14px' }}>Show my visits</button>
+          </form>
+        )}
+
+        {error && (
+          <div className="glass" style={{ padding: 16, marginBottom: 16, color: '#f59e0b' }}>{error}</div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
           {(['all', 'high', 'medium', 'low'] as const).map(key => {
             const cfg = key === 'all'
@@ -90,10 +256,8 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Table + Detail panel */}
-        <div style={{ display: 'flex', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
 
-          {/* Visits list */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {loading ? (
               <div className="glass" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -102,17 +266,21 @@ export default function DashboardPage() {
             ) : filtered.length === 0 ? (
               <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
                 <p style={{ fontSize: '32px', marginBottom: '12px' }}>🏥</p>
-                <p style={{ color: 'var(--text-secondary)' }}>No visits found.</p>
+                <p style={{ color: 'var(--text-secondary)' }}>
+                  {isPatient
+                    ? 'No visits found for this room yet. Use the same room ID from your consult, or finish End & Analyze first.'
+                    : 'No visits found. Log in as the doctor who created the rooms.'}
+                </p>
                 <button onClick={() => router.push('/')} className="btn-primary" style={{ marginTop: '16px' }}>
-                  Start a Consultation
+                  Back home
                 </button>
               </div>
             ) : (
               filtered.map(visit => {
-                const cfg = urgencyConfig[visit.urgency] || urgencyConfig.low
+                const cfg = urgencyConfig[visit.urgency || 'low'] || urgencyConfig.low
                 const isActive = selected?.id === visit.id
                 return (
-                  <div key={visit.id} onClick={() => setSelected(isActive ? null : visit)}
+                  <div key={visit.id} onClick={() => setSelected(visit)}
                     style={{
                       padding: '16px 20px', borderRadius: '10px', cursor: 'pointer',
                       background: isActive ? cfg.bg : 'var(--surface)',
@@ -124,14 +292,15 @@ export default function DashboardPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <p style={{ fontWeight: 600, fontSize: '15px' }}>
-                          {visit.patientName || 'Unknown Patient'}
+                          {isPatient ? (visit.doctorName ? `Dr. ${visit.doctorName}` : 'Consultation') : (visit.patientName || 'Unknown Patient')}
+                          <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 12 }}> · visit #{visitOrdinal(visit)}</span>
                         </p>
                         <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, textTransform: 'uppercase', fontWeight: 600 }}>
-                          {visit.urgency}
+                          {visit.urgency || 'pending'}
                         </span>
                       </div>
                       <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>
-                        Dr. {visit.doctorName} · {formatDate(visit.createdAt)}
+                        {isPatient ? visit.patientName : `Dr. ${visit.doctorName}`} · {formatDate(visit.createdAt)}
                       </p>
                       {visit.symptoms?.length > 0 && (
                         <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -141,6 +310,15 @@ export default function DashboardPage() {
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <p className="font-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{visit.roomId}</p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(isPatient ? `/report/${visit.id}` : `/visit/${visit.id}`)
+                        }}
+                        style={{ marginTop: 6, fontSize: 11, padding: '2px 8px', cursor: 'pointer' }}
+                      >
+                        {isPatient ? 'Open report' : 'Cockpit'}
+                      </button>
                       <p style={{ fontSize: '11px', color: cfg.color, marginTop: '4px' }}>
                         {visit.confidence ? `${(visit.confidence * 100).toFixed(0)}% conf.` : ''}
                       </p>
@@ -151,22 +329,22 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Detail panel */}
           {selected && (
-            <div className="glass" style={{ width: '320px', padding: '20px', height: 'fit-content', position: 'sticky', top: '24px' }}>
+            <div className="glass" style={{ width: '380px', padding: '20px', height: 'fit-content', position: 'sticky', top: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <p style={{ fontWeight: 600, fontSize: '15px' }}>{selected.patientName}</p>
+                <p style={{ fontWeight: 600, fontSize: '15px' }}>
+                  Visit #{visitOrdinal(selected)} report
+                </p>
                 <button onClick={() => setSelected(null)}
                   style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }}>✕</button>
               </div>
 
-              {/* Urgency */}
               {(() => {
-                const cfg = urgencyConfig[selected.urgency] || urgencyConfig.low
+                const cfg = urgencyConfig[selected.urgency || 'low'] || urgencyConfig.low
                 return (
                   <div style={{ padding: '10px 14px', background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: '8px', marginBottom: '14px' }}>
                     <p style={{ color: cfg.color, fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-                      {cfg.icon} {selected.urgency} urgency
+                      {cfg.icon} {selected.urgency || 'pending'} urgency
                     </p>
                     {selected.confidence && (
                       <p style={{ color: cfg.color, fontSize: '11px', opacity: 0.8, marginTop: '2px' }}>
@@ -177,15 +355,17 @@ export default function DashboardPage() {
                 )
               })()}
 
-              {/* Summary */}
-              {selected.summary && (
-                <div style={{ marginBottom: '14px' }}>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Summary</p>
-                  <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.7 }}>{selected.summary}</p>
-                </div>
-              )}
+              <div style={{ marginBottom: '14px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Report</p>
+                {reportText ? (
+                  <pre style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}>{reportText}</pre>
+                ) : (
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                    No report yet. End the call and wait for analysis to finish.
+                  </p>
+                )}
+              </div>
 
-              {/* Symptoms */}
               {selected.symptoms?.length > 0 && (
                 <div style={{ marginBottom: '12px' }}>
                   <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Symptoms</p>
@@ -197,9 +377,8 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Medicines */}
               {selected.medicines?.length > 0 && (
-                <div>
+                <div style={{ marginBottom: 12 }}>
                   <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Medicines</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                     {selected.medicines.map(m => (
@@ -208,10 +387,26 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
+
+              <button
+                onClick={() => router.push(isPatient ? `/report/${selected.id}` : `/visit/${selected.id}`)}
+                className="btn-primary"
+                style={{ width: '100%', marginTop: 8, padding: '10px' }}
+              >
+                {isPatient ? 'Full visit report →' : 'Open doctor cockpit →'}
+              </button>
             </div>
           )}
         </div>
       </div>
     </main>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<main style={{ padding: 24 }}>Loading dashboard...</main>}>
+      <DashboardInner />
+    </Suspense>
   )
 }

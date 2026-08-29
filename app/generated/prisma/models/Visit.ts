@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.ts"
+import type * as Prisma from "../internal/prismaNamespace.ts"
 
 /**
  * Model Visit
@@ -45,6 +45,9 @@ export type VisitMinAggregateOutputType = {
   urgency: string | null
   confidence: number | null
   summary: string | null
+  soapDraft: string | null
+  patientSummary: string | null
+  noteStatus: string | null
   status: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -64,6 +67,9 @@ export type VisitMaxAggregateOutputType = {
   urgency: string | null
   confidence: number | null
   summary: string | null
+  soapDraft: string | null
+  patientSummary: string | null
+  noteStatus: string | null
   status: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -86,6 +92,10 @@ export type VisitCountAggregateOutputType = {
   urgency: number
   confidence: number
   summary: number
+  soapDraft: number
+  patientSummary: number
+  noteStatus: number
+  claims: number
   status: number
   createdAt: number
   updatedAt: number
@@ -115,6 +125,9 @@ export type VisitMinAggregateInputType = {
   urgency?: true
   confidence?: true
   summary?: true
+  soapDraft?: true
+  patientSummary?: true
+  noteStatus?: true
   status?: true
   createdAt?: true
   updatedAt?: true
@@ -134,6 +147,9 @@ export type VisitMaxAggregateInputType = {
   urgency?: true
   confidence?: true
   summary?: true
+  soapDraft?: true
+  patientSummary?: true
+  noteStatus?: true
   status?: true
   createdAt?: true
   updatedAt?: true
@@ -156,6 +172,10 @@ export type VisitCountAggregateInputType = {
   urgency?: true
   confidence?: true
   summary?: true
+  soapDraft?: true
+  patientSummary?: true
+  noteStatus?: true
+  claims?: true
   status?: true
   createdAt?: true
   updatedAt?: true
@@ -265,6 +285,10 @@ export type VisitGroupByOutputType = {
   urgency: string | null
   confidence: number | null
   summary: string | null
+  soapDraft: string | null
+  patientSummary: string | null
+  noteStatus: string
+  claims: runtime.JsonValue | null
   status: string
   createdAt: Date
   updatedAt: Date
@@ -310,6 +334,10 @@ export type VisitWhereInput = {
   urgency?: Prisma.StringNullableFilter<"Visit"> | string | null
   confidence?: Prisma.FloatNullableFilter<"Visit"> | number | null
   summary?: Prisma.StringNullableFilter<"Visit"> | string | null
+  soapDraft?: Prisma.StringNullableFilter<"Visit"> | string | null
+  patientSummary?: Prisma.StringNullableFilter<"Visit"> | string | null
+  noteStatus?: Prisma.StringFilter<"Visit"> | string
+  claims?: Prisma.JsonNullableFilter<"Visit">
   status?: Prisma.StringFilter<"Visit"> | string
   createdAt?: Prisma.DateTimeFilter<"Visit"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Visit"> | Date | string
@@ -319,6 +347,9 @@ export type VisitWhereInput = {
   appointment?: Prisma.XOR<Prisma.AppointmentNullableScalarRelationFilter, Prisma.AppointmentWhereInput> | null
   doctor?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   patient?: Prisma.XOR<Prisma.PatientNullableScalarRelationFilter, Prisma.PatientWhereInput> | null
+  events?: Prisma.VisitEventListRelationFilter
+  agentRuns?: Prisma.AgentRunListRelationFilter
+  approvals?: Prisma.ApprovalListRelationFilter
 }
 
 export type VisitOrderByWithRelationInput = {
@@ -335,6 +366,10 @@ export type VisitOrderByWithRelationInput = {
   urgency?: Prisma.SortOrderInput | Prisma.SortOrder
   confidence?: Prisma.SortOrderInput | Prisma.SortOrder
   summary?: Prisma.SortOrderInput | Prisma.SortOrder
+  soapDraft?: Prisma.SortOrderInput | Prisma.SortOrder
+  patientSummary?: Prisma.SortOrderInput | Prisma.SortOrder
+  noteStatus?: Prisma.SortOrder
+  claims?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -344,6 +379,9 @@ export type VisitOrderByWithRelationInput = {
   appointment?: Prisma.AppointmentOrderByWithRelationInput
   doctor?: Prisma.UserOrderByWithRelationInput
   patient?: Prisma.PatientOrderByWithRelationInput
+  events?: Prisma.VisitEventOrderByRelationAggregateInput
+  agentRuns?: Prisma.AgentRunOrderByRelationAggregateInput
+  approvals?: Prisma.ApprovalOrderByRelationAggregateInput
 }
 
 export type VisitWhereUniqueInput = Prisma.AtLeast<{
@@ -364,6 +402,10 @@ export type VisitWhereUniqueInput = Prisma.AtLeast<{
   urgency?: Prisma.StringNullableFilter<"Visit"> | string | null
   confidence?: Prisma.FloatNullableFilter<"Visit"> | number | null
   summary?: Prisma.StringNullableFilter<"Visit"> | string | null
+  soapDraft?: Prisma.StringNullableFilter<"Visit"> | string | null
+  patientSummary?: Prisma.StringNullableFilter<"Visit"> | string | null
+  noteStatus?: Prisma.StringFilter<"Visit"> | string
+  claims?: Prisma.JsonNullableFilter<"Visit">
   status?: Prisma.StringFilter<"Visit"> | string
   createdAt?: Prisma.DateTimeFilter<"Visit"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Visit"> | Date | string
@@ -372,6 +414,9 @@ export type VisitWhereUniqueInput = Prisma.AtLeast<{
   appointment?: Prisma.XOR<Prisma.AppointmentNullableScalarRelationFilter, Prisma.AppointmentWhereInput> | null
   doctor?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   patient?: Prisma.XOR<Prisma.PatientNullableScalarRelationFilter, Prisma.PatientWhereInput> | null
+  events?: Prisma.VisitEventListRelationFilter
+  agentRuns?: Prisma.AgentRunListRelationFilter
+  approvals?: Prisma.ApprovalListRelationFilter
 }, "id" | "roomId" | "appointmentId">
 
 export type VisitOrderByWithAggregationInput = {
@@ -388,6 +433,10 @@ export type VisitOrderByWithAggregationInput = {
   urgency?: Prisma.SortOrderInput | Prisma.SortOrder
   confidence?: Prisma.SortOrderInput | Prisma.SortOrder
   summary?: Prisma.SortOrderInput | Prisma.SortOrder
+  soapDraft?: Prisma.SortOrderInput | Prisma.SortOrder
+  patientSummary?: Prisma.SortOrderInput | Prisma.SortOrder
+  noteStatus?: Prisma.SortOrder
+  claims?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -418,6 +467,10 @@ export type VisitScalarWhereWithAggregatesInput = {
   urgency?: Prisma.StringNullableWithAggregatesFilter<"Visit"> | string | null
   confidence?: Prisma.FloatNullableWithAggregatesFilter<"Visit"> | number | null
   summary?: Prisma.StringNullableWithAggregatesFilter<"Visit"> | string | null
+  soapDraft?: Prisma.StringNullableWithAggregatesFilter<"Visit"> | string | null
+  patientSummary?: Prisma.StringNullableWithAggregatesFilter<"Visit"> | string | null
+  noteStatus?: Prisma.StringWithAggregatesFilter<"Visit"> | string
+  claims?: Prisma.JsonNullableWithAggregatesFilter<"Visit">
   status?: Prisma.StringWithAggregatesFilter<"Visit"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Visit"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Visit"> | Date | string
@@ -440,12 +493,19 @@ export type VisitCreateInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   appointment?: Prisma.AppointmentCreateNestedOneWithoutVisitInput
   doctor: Prisma.UserCreateNestedOneWithoutVisitsInput
   patient?: Prisma.PatientCreateNestedOneWithoutVisitsInput
+  events?: Prisma.VisitEventCreateNestedManyWithoutVisitInput
+  agentRuns?: Prisma.AgentRunCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalCreateNestedManyWithoutVisitInput
 }
 
 export type VisitUncheckedCreateInput = {
@@ -462,12 +522,19 @@ export type VisitUncheckedCreateInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   appointmentId?: string | null
   doctorId: string
   patientId?: string | null
+  events?: Prisma.VisitEventUncheckedCreateNestedManyWithoutVisitInput
+  agentRuns?: Prisma.AgentRunUncheckedCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalUncheckedCreateNestedManyWithoutVisitInput
 }
 
 export type VisitUpdateInput = {
@@ -484,12 +551,19 @@ export type VisitUpdateInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   appointment?: Prisma.AppointmentUpdateOneWithoutVisitNestedInput
   doctor?: Prisma.UserUpdateOneRequiredWithoutVisitsNestedInput
   patient?: Prisma.PatientUpdateOneWithoutVisitsNestedInput
+  events?: Prisma.VisitEventUpdateManyWithoutVisitNestedInput
+  agentRuns?: Prisma.AgentRunUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUpdateManyWithoutVisitNestedInput
 }
 
 export type VisitUncheckedUpdateInput = {
@@ -506,12 +580,19 @@ export type VisitUncheckedUpdateInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   appointmentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   doctorId?: Prisma.StringFieldUpdateOperationsInput | string
   patientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  events?: Prisma.VisitEventUncheckedUpdateManyWithoutVisitNestedInput
+  agentRuns?: Prisma.AgentRunUncheckedUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUncheckedUpdateManyWithoutVisitNestedInput
 }
 
 export type VisitCreateManyInput = {
@@ -528,6 +609,10 @@ export type VisitCreateManyInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -550,6 +635,10 @@ export type VisitUpdateManyMutationInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -569,6 +658,10 @@ export type VisitUncheckedUpdateManyInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -606,6 +699,10 @@ export type VisitCountOrderByAggregateInput = {
   urgency?: Prisma.SortOrder
   confidence?: Prisma.SortOrder
   summary?: Prisma.SortOrder
+  soapDraft?: Prisma.SortOrder
+  patientSummary?: Prisma.SortOrder
+  noteStatus?: Prisma.SortOrder
+  claims?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -629,6 +726,9 @@ export type VisitMaxOrderByAggregateInput = {
   urgency?: Prisma.SortOrder
   confidence?: Prisma.SortOrder
   summary?: Prisma.SortOrder
+  soapDraft?: Prisma.SortOrder
+  patientSummary?: Prisma.SortOrder
+  noteStatus?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -648,6 +748,9 @@ export type VisitMinOrderByAggregateInput = {
   urgency?: Prisma.SortOrder
   confidence?: Prisma.SortOrder
   summary?: Prisma.SortOrder
+  soapDraft?: Prisma.SortOrder
+  patientSummary?: Prisma.SortOrder
+  noteStatus?: Prisma.SortOrder
   status?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -658,6 +761,11 @@ export type VisitMinOrderByAggregateInput = {
 
 export type VisitSumOrderByAggregateInput = {
   confidence?: Prisma.SortOrder
+}
+
+export type VisitScalarRelationFilter = {
+  is?: Prisma.VisitWhereInput
+  isNot?: Prisma.VisitWhereInput
 }
 
 export type VisitCreateNestedManyWithoutDoctorInput = {
@@ -811,6 +919,48 @@ export type NullableFloatFieldUpdateOperationsInput = {
   divide?: number
 }
 
+export type VisitCreateNestedOneWithoutEventsInput = {
+  create?: Prisma.XOR<Prisma.VisitCreateWithoutEventsInput, Prisma.VisitUncheckedCreateWithoutEventsInput>
+  connectOrCreate?: Prisma.VisitCreateOrConnectWithoutEventsInput
+  connect?: Prisma.VisitWhereUniqueInput
+}
+
+export type VisitUpdateOneRequiredWithoutEventsNestedInput = {
+  create?: Prisma.XOR<Prisma.VisitCreateWithoutEventsInput, Prisma.VisitUncheckedCreateWithoutEventsInput>
+  connectOrCreate?: Prisma.VisitCreateOrConnectWithoutEventsInput
+  upsert?: Prisma.VisitUpsertWithoutEventsInput
+  connect?: Prisma.VisitWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.VisitUpdateToOneWithWhereWithoutEventsInput, Prisma.VisitUpdateWithoutEventsInput>, Prisma.VisitUncheckedUpdateWithoutEventsInput>
+}
+
+export type VisitCreateNestedOneWithoutAgentRunsInput = {
+  create?: Prisma.XOR<Prisma.VisitCreateWithoutAgentRunsInput, Prisma.VisitUncheckedCreateWithoutAgentRunsInput>
+  connectOrCreate?: Prisma.VisitCreateOrConnectWithoutAgentRunsInput
+  connect?: Prisma.VisitWhereUniqueInput
+}
+
+export type VisitUpdateOneRequiredWithoutAgentRunsNestedInput = {
+  create?: Prisma.XOR<Prisma.VisitCreateWithoutAgentRunsInput, Prisma.VisitUncheckedCreateWithoutAgentRunsInput>
+  connectOrCreate?: Prisma.VisitCreateOrConnectWithoutAgentRunsInput
+  upsert?: Prisma.VisitUpsertWithoutAgentRunsInput
+  connect?: Prisma.VisitWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.VisitUpdateToOneWithWhereWithoutAgentRunsInput, Prisma.VisitUpdateWithoutAgentRunsInput>, Prisma.VisitUncheckedUpdateWithoutAgentRunsInput>
+}
+
+export type VisitCreateNestedOneWithoutApprovalsInput = {
+  create?: Prisma.XOR<Prisma.VisitCreateWithoutApprovalsInput, Prisma.VisitUncheckedCreateWithoutApprovalsInput>
+  connectOrCreate?: Prisma.VisitCreateOrConnectWithoutApprovalsInput
+  connect?: Prisma.VisitWhereUniqueInput
+}
+
+export type VisitUpdateOneRequiredWithoutApprovalsNestedInput = {
+  create?: Prisma.XOR<Prisma.VisitCreateWithoutApprovalsInput, Prisma.VisitUncheckedCreateWithoutApprovalsInput>
+  connectOrCreate?: Prisma.VisitCreateOrConnectWithoutApprovalsInput
+  upsert?: Prisma.VisitUpsertWithoutApprovalsInput
+  connect?: Prisma.VisitWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.VisitUpdateToOneWithWhereWithoutApprovalsInput, Prisma.VisitUpdateWithoutApprovalsInput>, Prisma.VisitUncheckedUpdateWithoutApprovalsInput>
+}
+
 export type VisitCreateWithoutDoctorInput = {
   id?: string
   roomId: string
@@ -825,11 +975,18 @@ export type VisitCreateWithoutDoctorInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   appointment?: Prisma.AppointmentCreateNestedOneWithoutVisitInput
   patient?: Prisma.PatientCreateNestedOneWithoutVisitsInput
+  events?: Prisma.VisitEventCreateNestedManyWithoutVisitInput
+  agentRuns?: Prisma.AgentRunCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalCreateNestedManyWithoutVisitInput
 }
 
 export type VisitUncheckedCreateWithoutDoctorInput = {
@@ -846,11 +1003,18 @@ export type VisitUncheckedCreateWithoutDoctorInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   appointmentId?: string | null
   patientId?: string | null
+  events?: Prisma.VisitEventUncheckedCreateNestedManyWithoutVisitInput
+  agentRuns?: Prisma.AgentRunUncheckedCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalUncheckedCreateNestedManyWithoutVisitInput
 }
 
 export type VisitCreateOrConnectWithoutDoctorInput = {
@@ -896,6 +1060,10 @@ export type VisitScalarWhereInput = {
   urgency?: Prisma.StringNullableFilter<"Visit"> | string | null
   confidence?: Prisma.FloatNullableFilter<"Visit"> | number | null
   summary?: Prisma.StringNullableFilter<"Visit"> | string | null
+  soapDraft?: Prisma.StringNullableFilter<"Visit"> | string | null
+  patientSummary?: Prisma.StringNullableFilter<"Visit"> | string | null
+  noteStatus?: Prisma.StringFilter<"Visit"> | string
+  claims?: Prisma.JsonNullableFilter<"Visit">
   status?: Prisma.StringFilter<"Visit"> | string
   createdAt?: Prisma.DateTimeFilter<"Visit"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Visit"> | Date | string
@@ -918,11 +1086,18 @@ export type VisitCreateWithoutPatientInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   appointment?: Prisma.AppointmentCreateNestedOneWithoutVisitInput
   doctor: Prisma.UserCreateNestedOneWithoutVisitsInput
+  events?: Prisma.VisitEventCreateNestedManyWithoutVisitInput
+  agentRuns?: Prisma.AgentRunCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalCreateNestedManyWithoutVisitInput
 }
 
 export type VisitUncheckedCreateWithoutPatientInput = {
@@ -939,11 +1114,18 @@ export type VisitUncheckedCreateWithoutPatientInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   appointmentId?: string | null
   doctorId: string
+  events?: Prisma.VisitEventUncheckedCreateNestedManyWithoutVisitInput
+  agentRuns?: Prisma.AgentRunUncheckedCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalUncheckedCreateNestedManyWithoutVisitInput
 }
 
 export type VisitCreateOrConnectWithoutPatientInput = {
@@ -986,11 +1168,18 @@ export type VisitCreateWithoutAppointmentInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   doctor: Prisma.UserCreateNestedOneWithoutVisitsInput
   patient?: Prisma.PatientCreateNestedOneWithoutVisitsInput
+  events?: Prisma.VisitEventCreateNestedManyWithoutVisitInput
+  agentRuns?: Prisma.AgentRunCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalCreateNestedManyWithoutVisitInput
 }
 
 export type VisitUncheckedCreateWithoutAppointmentInput = {
@@ -1007,11 +1196,18 @@ export type VisitUncheckedCreateWithoutAppointmentInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
   doctorId: string
   patientId?: string | null
+  events?: Prisma.VisitEventUncheckedCreateNestedManyWithoutVisitInput
+  agentRuns?: Prisma.AgentRunUncheckedCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalUncheckedCreateNestedManyWithoutVisitInput
 }
 
 export type VisitCreateOrConnectWithoutAppointmentInput = {
@@ -1044,11 +1240,18 @@ export type VisitUpdateWithoutAppointmentInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   doctor?: Prisma.UserUpdateOneRequiredWithoutVisitsNestedInput
   patient?: Prisma.PatientUpdateOneWithoutVisitsNestedInput
+  events?: Prisma.VisitEventUpdateManyWithoutVisitNestedInput
+  agentRuns?: Prisma.AgentRunUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUpdateManyWithoutVisitNestedInput
 }
 
 export type VisitUncheckedUpdateWithoutAppointmentInput = {
@@ -1065,11 +1268,402 @@ export type VisitUncheckedUpdateWithoutAppointmentInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   doctorId?: Prisma.StringFieldUpdateOperationsInput | string
   patientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  events?: Prisma.VisitEventUncheckedUpdateManyWithoutVisitNestedInput
+  agentRuns?: Prisma.AgentRunUncheckedUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUncheckedUpdateManyWithoutVisitNestedInput
+}
+
+export type VisitCreateWithoutEventsInput = {
+  id?: string
+  roomId: string
+  doctorName?: string | null
+  patientName?: string | null
+  transcript?: string | null
+  cleanText?: string | null
+  symptoms?: Prisma.VisitCreatesymptomsInput | string[]
+  medicines?: Prisma.VisitCreatemedicinesInput | string[]
+  advice?: Prisma.VisitCreateadviceInput | string[]
+  duration?: string | null
+  urgency?: string | null
+  confidence?: number | null
+  summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  appointment?: Prisma.AppointmentCreateNestedOneWithoutVisitInput
+  doctor: Prisma.UserCreateNestedOneWithoutVisitsInput
+  patient?: Prisma.PatientCreateNestedOneWithoutVisitsInput
+  agentRuns?: Prisma.AgentRunCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalCreateNestedManyWithoutVisitInput
+}
+
+export type VisitUncheckedCreateWithoutEventsInput = {
+  id?: string
+  roomId: string
+  doctorName?: string | null
+  patientName?: string | null
+  transcript?: string | null
+  cleanText?: string | null
+  symptoms?: Prisma.VisitCreatesymptomsInput | string[]
+  medicines?: Prisma.VisitCreatemedicinesInput | string[]
+  advice?: Prisma.VisitCreateadviceInput | string[]
+  duration?: string | null
+  urgency?: string | null
+  confidence?: number | null
+  summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  appointmentId?: string | null
+  doctorId: string
+  patientId?: string | null
+  agentRuns?: Prisma.AgentRunUncheckedCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalUncheckedCreateNestedManyWithoutVisitInput
+}
+
+export type VisitCreateOrConnectWithoutEventsInput = {
+  where: Prisma.VisitWhereUniqueInput
+  create: Prisma.XOR<Prisma.VisitCreateWithoutEventsInput, Prisma.VisitUncheckedCreateWithoutEventsInput>
+}
+
+export type VisitUpsertWithoutEventsInput = {
+  update: Prisma.XOR<Prisma.VisitUpdateWithoutEventsInput, Prisma.VisitUncheckedUpdateWithoutEventsInput>
+  create: Prisma.XOR<Prisma.VisitCreateWithoutEventsInput, Prisma.VisitUncheckedCreateWithoutEventsInput>
+  where?: Prisma.VisitWhereInput
+}
+
+export type VisitUpdateToOneWithWhereWithoutEventsInput = {
+  where?: Prisma.VisitWhereInput
+  data: Prisma.XOR<Prisma.VisitUpdateWithoutEventsInput, Prisma.VisitUncheckedUpdateWithoutEventsInput>
+}
+
+export type VisitUpdateWithoutEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  roomId?: Prisma.StringFieldUpdateOperationsInput | string
+  doctorName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  transcript?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cleanText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  symptoms?: Prisma.VisitUpdatesymptomsInput | string[]
+  medicines?: Prisma.VisitUpdatemedicinesInput | string[]
+  advice?: Prisma.VisitUpdateadviceInput | string[]
+  duration?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  appointment?: Prisma.AppointmentUpdateOneWithoutVisitNestedInput
+  doctor?: Prisma.UserUpdateOneRequiredWithoutVisitsNestedInput
+  patient?: Prisma.PatientUpdateOneWithoutVisitsNestedInput
+  agentRuns?: Prisma.AgentRunUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUpdateManyWithoutVisitNestedInput
+}
+
+export type VisitUncheckedUpdateWithoutEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  roomId?: Prisma.StringFieldUpdateOperationsInput | string
+  doctorName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  transcript?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cleanText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  symptoms?: Prisma.VisitUpdatesymptomsInput | string[]
+  medicines?: Prisma.VisitUpdatemedicinesInput | string[]
+  advice?: Prisma.VisitUpdateadviceInput | string[]
+  duration?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  appointmentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  doctorId?: Prisma.StringFieldUpdateOperationsInput | string
+  patientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  agentRuns?: Prisma.AgentRunUncheckedUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUncheckedUpdateManyWithoutVisitNestedInput
+}
+
+export type VisitCreateWithoutAgentRunsInput = {
+  id?: string
+  roomId: string
+  doctorName?: string | null
+  patientName?: string | null
+  transcript?: string | null
+  cleanText?: string | null
+  symptoms?: Prisma.VisitCreatesymptomsInput | string[]
+  medicines?: Prisma.VisitCreatemedicinesInput | string[]
+  advice?: Prisma.VisitCreateadviceInput | string[]
+  duration?: string | null
+  urgency?: string | null
+  confidence?: number | null
+  summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  appointment?: Prisma.AppointmentCreateNestedOneWithoutVisitInput
+  doctor: Prisma.UserCreateNestedOneWithoutVisitsInput
+  patient?: Prisma.PatientCreateNestedOneWithoutVisitsInput
+  events?: Prisma.VisitEventCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalCreateNestedManyWithoutVisitInput
+}
+
+export type VisitUncheckedCreateWithoutAgentRunsInput = {
+  id?: string
+  roomId: string
+  doctorName?: string | null
+  patientName?: string | null
+  transcript?: string | null
+  cleanText?: string | null
+  symptoms?: Prisma.VisitCreatesymptomsInput | string[]
+  medicines?: Prisma.VisitCreatemedicinesInput | string[]
+  advice?: Prisma.VisitCreateadviceInput | string[]
+  duration?: string | null
+  urgency?: string | null
+  confidence?: number | null
+  summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  appointmentId?: string | null
+  doctorId: string
+  patientId?: string | null
+  events?: Prisma.VisitEventUncheckedCreateNestedManyWithoutVisitInput
+  approvals?: Prisma.ApprovalUncheckedCreateNestedManyWithoutVisitInput
+}
+
+export type VisitCreateOrConnectWithoutAgentRunsInput = {
+  where: Prisma.VisitWhereUniqueInput
+  create: Prisma.XOR<Prisma.VisitCreateWithoutAgentRunsInput, Prisma.VisitUncheckedCreateWithoutAgentRunsInput>
+}
+
+export type VisitUpsertWithoutAgentRunsInput = {
+  update: Prisma.XOR<Prisma.VisitUpdateWithoutAgentRunsInput, Prisma.VisitUncheckedUpdateWithoutAgentRunsInput>
+  create: Prisma.XOR<Prisma.VisitCreateWithoutAgentRunsInput, Prisma.VisitUncheckedCreateWithoutAgentRunsInput>
+  where?: Prisma.VisitWhereInput
+}
+
+export type VisitUpdateToOneWithWhereWithoutAgentRunsInput = {
+  where?: Prisma.VisitWhereInput
+  data: Prisma.XOR<Prisma.VisitUpdateWithoutAgentRunsInput, Prisma.VisitUncheckedUpdateWithoutAgentRunsInput>
+}
+
+export type VisitUpdateWithoutAgentRunsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  roomId?: Prisma.StringFieldUpdateOperationsInput | string
+  doctorName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  transcript?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cleanText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  symptoms?: Prisma.VisitUpdatesymptomsInput | string[]
+  medicines?: Prisma.VisitUpdatemedicinesInput | string[]
+  advice?: Prisma.VisitUpdateadviceInput | string[]
+  duration?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  appointment?: Prisma.AppointmentUpdateOneWithoutVisitNestedInput
+  doctor?: Prisma.UserUpdateOneRequiredWithoutVisitsNestedInput
+  patient?: Prisma.PatientUpdateOneWithoutVisitsNestedInput
+  events?: Prisma.VisitEventUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUpdateManyWithoutVisitNestedInput
+}
+
+export type VisitUncheckedUpdateWithoutAgentRunsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  roomId?: Prisma.StringFieldUpdateOperationsInput | string
+  doctorName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  transcript?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cleanText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  symptoms?: Prisma.VisitUpdatesymptomsInput | string[]
+  medicines?: Prisma.VisitUpdatemedicinesInput | string[]
+  advice?: Prisma.VisitUpdateadviceInput | string[]
+  duration?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  appointmentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  doctorId?: Prisma.StringFieldUpdateOperationsInput | string
+  patientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  events?: Prisma.VisitEventUncheckedUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUncheckedUpdateManyWithoutVisitNestedInput
+}
+
+export type VisitCreateWithoutApprovalsInput = {
+  id?: string
+  roomId: string
+  doctorName?: string | null
+  patientName?: string | null
+  transcript?: string | null
+  cleanText?: string | null
+  symptoms?: Prisma.VisitCreatesymptomsInput | string[]
+  medicines?: Prisma.VisitCreatemedicinesInput | string[]
+  advice?: Prisma.VisitCreateadviceInput | string[]
+  duration?: string | null
+  urgency?: string | null
+  confidence?: number | null
+  summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  appointment?: Prisma.AppointmentCreateNestedOneWithoutVisitInput
+  doctor: Prisma.UserCreateNestedOneWithoutVisitsInput
+  patient?: Prisma.PatientCreateNestedOneWithoutVisitsInput
+  events?: Prisma.VisitEventCreateNestedManyWithoutVisitInput
+  agentRuns?: Prisma.AgentRunCreateNestedManyWithoutVisitInput
+}
+
+export type VisitUncheckedCreateWithoutApprovalsInput = {
+  id?: string
+  roomId: string
+  doctorName?: string | null
+  patientName?: string | null
+  transcript?: string | null
+  cleanText?: string | null
+  symptoms?: Prisma.VisitCreatesymptomsInput | string[]
+  medicines?: Prisma.VisitCreatemedicinesInput | string[]
+  advice?: Prisma.VisitCreateadviceInput | string[]
+  duration?: string | null
+  urgency?: string | null
+  confidence?: number | null
+  summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  appointmentId?: string | null
+  doctorId: string
+  patientId?: string | null
+  events?: Prisma.VisitEventUncheckedCreateNestedManyWithoutVisitInput
+  agentRuns?: Prisma.AgentRunUncheckedCreateNestedManyWithoutVisitInput
+}
+
+export type VisitCreateOrConnectWithoutApprovalsInput = {
+  where: Prisma.VisitWhereUniqueInput
+  create: Prisma.XOR<Prisma.VisitCreateWithoutApprovalsInput, Prisma.VisitUncheckedCreateWithoutApprovalsInput>
+}
+
+export type VisitUpsertWithoutApprovalsInput = {
+  update: Prisma.XOR<Prisma.VisitUpdateWithoutApprovalsInput, Prisma.VisitUncheckedUpdateWithoutApprovalsInput>
+  create: Prisma.XOR<Prisma.VisitCreateWithoutApprovalsInput, Prisma.VisitUncheckedCreateWithoutApprovalsInput>
+  where?: Prisma.VisitWhereInput
+}
+
+export type VisitUpdateToOneWithWhereWithoutApprovalsInput = {
+  where?: Prisma.VisitWhereInput
+  data: Prisma.XOR<Prisma.VisitUpdateWithoutApprovalsInput, Prisma.VisitUncheckedUpdateWithoutApprovalsInput>
+}
+
+export type VisitUpdateWithoutApprovalsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  roomId?: Prisma.StringFieldUpdateOperationsInput | string
+  doctorName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  transcript?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cleanText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  symptoms?: Prisma.VisitUpdatesymptomsInput | string[]
+  medicines?: Prisma.VisitUpdatemedicinesInput | string[]
+  advice?: Prisma.VisitUpdateadviceInput | string[]
+  duration?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  appointment?: Prisma.AppointmentUpdateOneWithoutVisitNestedInput
+  doctor?: Prisma.UserUpdateOneRequiredWithoutVisitsNestedInput
+  patient?: Prisma.PatientUpdateOneWithoutVisitsNestedInput
+  events?: Prisma.VisitEventUpdateManyWithoutVisitNestedInput
+  agentRuns?: Prisma.AgentRunUpdateManyWithoutVisitNestedInput
+}
+
+export type VisitUncheckedUpdateWithoutApprovalsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  roomId?: Prisma.StringFieldUpdateOperationsInput | string
+  doctorName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  transcript?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cleanText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  symptoms?: Prisma.VisitUpdatesymptomsInput | string[]
+  medicines?: Prisma.VisitUpdatemedicinesInput | string[]
+  advice?: Prisma.VisitUpdateadviceInput | string[]
+  duration?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  status?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  appointmentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  doctorId?: Prisma.StringFieldUpdateOperationsInput | string
+  patientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  events?: Prisma.VisitEventUncheckedUpdateManyWithoutVisitNestedInput
+  agentRuns?: Prisma.AgentRunUncheckedUpdateManyWithoutVisitNestedInput
 }
 
 export type VisitCreateManyDoctorInput = {
@@ -1086,6 +1680,10 @@ export type VisitCreateManyDoctorInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1107,11 +1705,18 @@ export type VisitUpdateWithoutDoctorInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   appointment?: Prisma.AppointmentUpdateOneWithoutVisitNestedInput
   patient?: Prisma.PatientUpdateOneWithoutVisitsNestedInput
+  events?: Prisma.VisitEventUpdateManyWithoutVisitNestedInput
+  agentRuns?: Prisma.AgentRunUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUpdateManyWithoutVisitNestedInput
 }
 
 export type VisitUncheckedUpdateWithoutDoctorInput = {
@@ -1128,11 +1733,18 @@ export type VisitUncheckedUpdateWithoutDoctorInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   appointmentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   patientId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  events?: Prisma.VisitEventUncheckedUpdateManyWithoutVisitNestedInput
+  agentRuns?: Prisma.AgentRunUncheckedUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUncheckedUpdateManyWithoutVisitNestedInput
 }
 
 export type VisitUncheckedUpdateManyWithoutDoctorInput = {
@@ -1149,6 +1761,10 @@ export type VisitUncheckedUpdateManyWithoutDoctorInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1170,6 +1786,10 @@ export type VisitCreateManyPatientInput = {
   urgency?: string | null
   confidence?: number | null
   summary?: string | null
+  soapDraft?: string | null
+  patientSummary?: string | null
+  noteStatus?: string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1191,11 +1811,18 @@ export type VisitUpdateWithoutPatientInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   appointment?: Prisma.AppointmentUpdateOneWithoutVisitNestedInput
   doctor?: Prisma.UserUpdateOneRequiredWithoutVisitsNestedInput
+  events?: Prisma.VisitEventUpdateManyWithoutVisitNestedInput
+  agentRuns?: Prisma.AgentRunUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUpdateManyWithoutVisitNestedInput
 }
 
 export type VisitUncheckedUpdateWithoutPatientInput = {
@@ -1212,11 +1839,18 @@ export type VisitUncheckedUpdateWithoutPatientInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   appointmentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   doctorId?: Prisma.StringFieldUpdateOperationsInput | string
+  events?: Prisma.VisitEventUncheckedUpdateManyWithoutVisitNestedInput
+  agentRuns?: Prisma.AgentRunUncheckedUpdateManyWithoutVisitNestedInput
+  approvals?: Prisma.ApprovalUncheckedUpdateManyWithoutVisitNestedInput
 }
 
 export type VisitUncheckedUpdateManyWithoutPatientInput = {
@@ -1233,6 +1867,10 @@ export type VisitUncheckedUpdateManyWithoutPatientInput = {
   urgency?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   confidence?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  soapDraft?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  patientSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  noteStatus?: Prisma.StringFieldUpdateOperationsInput | string
+  claims?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1240,6 +1878,53 @@ export type VisitUncheckedUpdateManyWithoutPatientInput = {
   doctorId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
+
+/**
+ * Count Type VisitCountOutputType
+ */
+
+export type VisitCountOutputType = {
+  events: number
+  agentRuns: number
+  approvals: number
+}
+
+export type VisitCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  events?: boolean | VisitCountOutputTypeCountEventsArgs
+  agentRuns?: boolean | VisitCountOutputTypeCountAgentRunsArgs
+  approvals?: boolean | VisitCountOutputTypeCountApprovalsArgs
+}
+
+/**
+ * VisitCountOutputType without action
+ */
+export type VisitCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the VisitCountOutputType
+   */
+  select?: Prisma.VisitCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * VisitCountOutputType without action
+ */
+export type VisitCountOutputTypeCountEventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.VisitEventWhereInput
+}
+
+/**
+ * VisitCountOutputType without action
+ */
+export type VisitCountOutputTypeCountAgentRunsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AgentRunWhereInput
+}
+
+/**
+ * VisitCountOutputType without action
+ */
+export type VisitCountOutputTypeCountApprovalsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ApprovalWhereInput
+}
 
 
 export type VisitSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1256,6 +1941,10 @@ export type VisitSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   urgency?: boolean
   confidence?: boolean
   summary?: boolean
+  soapDraft?: boolean
+  patientSummary?: boolean
+  noteStatus?: boolean
+  claims?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1265,6 +1954,10 @@ export type VisitSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   appointment?: boolean | Prisma.Visit$appointmentArgs<ExtArgs>
   doctor?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   patient?: boolean | Prisma.Visit$patientArgs<ExtArgs>
+  events?: boolean | Prisma.Visit$eventsArgs<ExtArgs>
+  agentRuns?: boolean | Prisma.Visit$agentRunsArgs<ExtArgs>
+  approvals?: boolean | Prisma.Visit$approvalsArgs<ExtArgs>
+  _count?: boolean | Prisma.VisitCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["visit"]>
 
 export type VisitSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1281,6 +1974,10 @@ export type VisitSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   urgency?: boolean
   confidence?: boolean
   summary?: boolean
+  soapDraft?: boolean
+  patientSummary?: boolean
+  noteStatus?: boolean
+  claims?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1306,6 +2003,10 @@ export type VisitSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   urgency?: boolean
   confidence?: boolean
   summary?: boolean
+  soapDraft?: boolean
+  patientSummary?: boolean
+  noteStatus?: boolean
+  claims?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1331,6 +2032,10 @@ export type VisitSelectScalar = {
   urgency?: boolean
   confidence?: boolean
   summary?: boolean
+  soapDraft?: boolean
+  patientSummary?: boolean
+  noteStatus?: boolean
+  claims?: boolean
   status?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1339,11 +2044,15 @@ export type VisitSelectScalar = {
   patientId?: boolean
 }
 
-export type VisitOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "roomId" | "doctorName" | "patientName" | "transcript" | "cleanText" | "symptoms" | "medicines" | "advice" | "duration" | "urgency" | "confidence" | "summary" | "status" | "createdAt" | "updatedAt" | "appointmentId" | "doctorId" | "patientId", ExtArgs["result"]["visit"]>
+export type VisitOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "roomId" | "doctorName" | "patientName" | "transcript" | "cleanText" | "symptoms" | "medicines" | "advice" | "duration" | "urgency" | "confidence" | "summary" | "soapDraft" | "patientSummary" | "noteStatus" | "claims" | "status" | "createdAt" | "updatedAt" | "appointmentId" | "doctorId" | "patientId", ExtArgs["result"]["visit"]>
 export type VisitInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   appointment?: boolean | Prisma.Visit$appointmentArgs<ExtArgs>
   doctor?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   patient?: boolean | Prisma.Visit$patientArgs<ExtArgs>
+  events?: boolean | Prisma.Visit$eventsArgs<ExtArgs>
+  agentRuns?: boolean | Prisma.Visit$agentRunsArgs<ExtArgs>
+  approvals?: boolean | Prisma.Visit$approvalsArgs<ExtArgs>
+  _count?: boolean | Prisma.VisitCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type VisitIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   appointment?: boolean | Prisma.Visit$appointmentArgs<ExtArgs>
@@ -1362,6 +2071,9 @@ export type $VisitPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     appointment: Prisma.$AppointmentPayload<ExtArgs> | null
     doctor: Prisma.$UserPayload<ExtArgs>
     patient: Prisma.$PatientPayload<ExtArgs> | null
+    events: Prisma.$VisitEventPayload<ExtArgs>[]
+    agentRuns: Prisma.$AgentRunPayload<ExtArgs>[]
+    approvals: Prisma.$ApprovalPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1377,6 +2089,10 @@ export type $VisitPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     urgency: string | null
     confidence: number | null
     summary: string | null
+    soapDraft: string | null
+    patientSummary: string | null
+    noteStatus: string
+    claims: runtime.JsonValue | null
     status: string
     createdAt: Date
     updatedAt: Date
@@ -1780,6 +2496,9 @@ export interface Prisma__VisitClient<T, Null = never, ExtArgs extends runtime.Ty
   appointment<T extends Prisma.Visit$appointmentArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Visit$appointmentArgs<ExtArgs>>): Prisma.Prisma__AppointmentClient<runtime.Types.Result.GetResult<Prisma.$AppointmentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   doctor<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   patient<T extends Prisma.Visit$patientArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Visit$patientArgs<ExtArgs>>): Prisma.Prisma__PatientClient<runtime.Types.Result.GetResult<Prisma.$PatientPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  events<T extends Prisma.Visit$eventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Visit$eventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VisitEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  agentRuns<T extends Prisma.Visit$agentRunsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Visit$agentRunsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentRunPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  approvals<T extends Prisma.Visit$approvalsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Visit$approvalsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ApprovalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1822,6 +2541,10 @@ export interface VisitFieldRefs {
   readonly urgency: Prisma.FieldRef<"Visit", 'String'>
   readonly confidence: Prisma.FieldRef<"Visit", 'Float'>
   readonly summary: Prisma.FieldRef<"Visit", 'String'>
+  readonly soapDraft: Prisma.FieldRef<"Visit", 'String'>
+  readonly patientSummary: Prisma.FieldRef<"Visit", 'String'>
+  readonly noteStatus: Prisma.FieldRef<"Visit", 'String'>
+  readonly claims: Prisma.FieldRef<"Visit", 'Json'>
   readonly status: Prisma.FieldRef<"Visit", 'String'>
   readonly createdAt: Prisma.FieldRef<"Visit", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Visit", 'DateTime'>
@@ -2264,6 +2987,78 @@ export type Visit$patientArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    */
   include?: Prisma.PatientInclude<ExtArgs> | null
   where?: Prisma.PatientWhereInput
+}
+
+/**
+ * Visit.events
+ */
+export type Visit$eventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the VisitEvent
+   */
+  select?: Prisma.VisitEventSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the VisitEvent
+   */
+  omit?: Prisma.VisitEventOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.VisitEventInclude<ExtArgs> | null
+  where?: Prisma.VisitEventWhereInput
+  orderBy?: Prisma.VisitEventOrderByWithRelationInput | Prisma.VisitEventOrderByWithRelationInput[]
+  cursor?: Prisma.VisitEventWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.VisitEventScalarFieldEnum | Prisma.VisitEventScalarFieldEnum[]
+}
+
+/**
+ * Visit.agentRuns
+ */
+export type Visit$agentRunsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AgentRun
+   */
+  select?: Prisma.AgentRunSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AgentRun
+   */
+  omit?: Prisma.AgentRunOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AgentRunInclude<ExtArgs> | null
+  where?: Prisma.AgentRunWhereInput
+  orderBy?: Prisma.AgentRunOrderByWithRelationInput | Prisma.AgentRunOrderByWithRelationInput[]
+  cursor?: Prisma.AgentRunWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AgentRunScalarFieldEnum | Prisma.AgentRunScalarFieldEnum[]
+}
+
+/**
+ * Visit.approvals
+ */
+export type Visit$approvalsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Approval
+   */
+  select?: Prisma.ApprovalSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Approval
+   */
+  omit?: Prisma.ApprovalOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ApprovalInclude<ExtArgs> | null
+  where?: Prisma.ApprovalWhereInput
+  orderBy?: Prisma.ApprovalOrderByWithRelationInput | Prisma.ApprovalOrderByWithRelationInput[]
+  cursor?: Prisma.ApprovalWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ApprovalScalarFieldEnum | Prisma.ApprovalScalarFieldEnum[]
 }
 
 /**
