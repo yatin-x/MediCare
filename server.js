@@ -52,13 +52,20 @@ async function start() {
       io.to(to).emit('signal-offer', { offer, from: socket.id })
     })
 
-    socket.on('signal-answer', ({ answer, to }) => {
-      console.log(`answer from ${socket.id} to ${to}`)
-      io.to(to).emit('signal-answer', { answer, from: socket.id })
+    socket.on('signal-answer', ({ answer, to, roomId }) => {
+      if (to) {
+        io.to(to).emit('signal-answer', { answer, from: socket.id })
+      } else if (roomId) {
+        socket.to(roomId).emit('signal-answer', { answer, from: socket.id })
+      }
     })
 
-    socket.on('signal-ice', ({ candidate, to }) => {
-      io.to(to).emit('signal-ice', { candidate, from: socket.id })
+    socket.on('signal-ice', ({ candidate, to, roomId }) => {
+      if (to) {
+        io.to(to).emit('signal-ice', { candidate, from: socket.id })
+      } else if (roomId) {
+        socket.to(roomId).emit('signal-ice', { candidate, from: socket.id })
+      }
     })
 
     socket.on('transcript-chunk', ({ chunk, to, roomId }) => {

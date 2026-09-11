@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 
 interface UseWebRTCProps {
@@ -19,149 +19,157 @@ interface WebRTCState {
 export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTCState {
   const socketRef = useRef<Socket | null>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
-  
-  // FIX: Don't instantiate MediaStream on the server. Default to null.
   const remoteStreamRef = useRef<MediaStream | null>(null)
+  const remoteIdRef = useRef<string | null>(null)
+  const outgoingIceRef = useRef<RTCIceCandidateInit[]>([])
+  const incomingIceRef = useRef<RTCIceCandidateInit[]>([])
+  const makingOfferRef = useRef(false)
 
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
   const [connectionState, setConnectionState] = useState<WebRTCState['connectionState']>('idle')
   const [peerJoined, setPeerJoined] = useState(false)
   const [socket, setSocket] = useState<Socket | null>(null)
 
-  // Track remote socket ID
-  const remoteIdRef = useRef<string | null>(null)
-  const getRemoteId = () => remoteIdRef.current
+  useEffect(() => {
+    if (!localStream || !roomId) return
 
-  // ── Create RTCPeerConnection ───────────────────────────────
-  const createPC = useCallback(() => {
+    outgoingIceRef.current = []
+    incomingIceRef.current = []
+    remoteStreamRef.current = new MediaStream()
+
+    const socket = io(process.env.NEXT_PUBLIC_APP_URL || window.location.origin, {
+      transports: ['websocket', 'polling'],
+    })
+    socketRef.current = socket
+
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-      ]
+      ],
+    })
+    pcRef.current = pc
+
+    localStream.getTracks().forEach(track => {
+      pc.addTrack(track, localStream)
     })
 
-    // Add local tracks
-    if (localStream) {
-      localStream.getTracks().forEach(track => {
-        pc.addTrack(track, localStream)
-      })
-    }
-
-    // Receive remote tracks
-    pc.ontrack = (event) => {
-      // FIX: Lazily initialize MediaStream only on the client
-      if (!remoteStreamRef.current && typeof MediaStream !== 'undefined') {
-        remoteStreamRef.current = new MediaStream()
+    pc.ontrack = event => {
+      const inbound = remoteStreamRef.current ?? new MediaStream()
+      remoteStreamRef.current = inbound
+      if (!inbound.getTracks().some(t => t.id === event.track.id)) {
+        inbound.addTrack(event.track)
       }
-      
-      if (remoteStreamRef.current) {
-        event.streams[0].getTracks().forEach(track => {
-          // Prevent adding duplicate tracks
-          if (!remoteStreamRef.current!.getTracks().map(t => t.id).includes(track.id)) {
-            remoteStreamRef.current!.addTrack(track)
-          }
-        })
-        setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()))
-      }
+      setRemoteStream(new MediaStream(inbound.getTracks()))
       setConnectionState('connected')
     }
 
-    // ICE candidate → send to peer via signaling server
-    pc.onicecandidate = (event) => {
-      if (event.candidate && socketRef.current) {
-        socketRef.current.emit('signal-ice', {
-          candidate: event.candidate,
-          to: pcRef.current?.remoteDescription ? getRemoteId() : null,
-          roomId
-        })
-      }
+    function emitIce(candidate: RTCIceCandidateInit) {
+      socket.emit('signal-ice', {
+        candidate,
+        to: remoteIdRef.current,
+        roomId,
+      })
+    }
+
+    pc.onicecandidate = event => {
+      if (!event.candidate) return
+      const payload = event.candidate.toJSON()
+      if (remoteIdRef.current) emitIce(payload)
+      else outgoingIceRef.current.push(payload)
     }
 
     pc.onconnectionstatechange = () => {
-      console.log('PC state:', pc.connectionState)
       if (pc.connectionState === 'connected') setConnectionState('connected')
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
         setConnectionState('disconnected')
       }
     }
 
-    return pc
-  }, [localStream, roomId])
+    function rememberPeer(socketId: string) {
+      remoteIdRef.current = socketId
+      setPeerJoined(true)
+      const queued = outgoingIceRef.current.splice(0)
+      queued.forEach(emitIce)
+    }
 
-  // ── Main WebRTC setup ──────────────────────────────────────
-  useEffect(() => {
-    if (!localStream || !roomId) return
+    async function drainIncomingIce() {
+      const queued = incomingIceRef.current.splice(0)
+      for (const candidate of queued) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate))
+        } catch (err) {
+          console.error('ICE error:', err)
+        }
+      }
+    }
 
-    const socket = io(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000', {
-      transports: ['websocket']
-    })
-    socketRef.current = socket
+    async function makeOffer(to: string) {
+      if (makingOfferRef.current || pc.signalingState !== 'stable') return
+      makingOfferRef.current = true
+      try {
+        const offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+        socket.emit('signal-offer', { roomId, offer, to })
+      } catch (err) {
+        console.error('Offer error:', err)
+      } finally {
+        makingOfferRef.current = false
+      }
+    }
+
     const handleConnect = () => {
       setSocket(socket)
       setConnectionState('connecting')
+      socket.emit('join-room', { roomId, role })
     }
     const handleDisconnect = () => {
       setSocket(null)
       setConnectionState('disconnected')
     }
+
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
 
-    const pc = createPC()
-    pcRef.current = pc
-
-    // Join room
-    socket.emit('join-room', { roomId, role })
-
-    // ── Someone already in room — we initiate offer ──────────
     socket.on('room-peers', async (peers: Array<{ role: string; socketId: string }>) => {
-      if (peers.length > 0) {
-        remoteIdRef.current = peers[0].socketId
-        setPeerJoined(true)
-
-        // Doctor creates the offer
-        try {
-          const offer = await pc.createOffer()
-          await pc.setLocalDescription(offer)
-          socket.emit('signal-offer', { roomId, offer, to: peers[0].socketId })
-        } catch (err) {
-          console.error('Offer error:', err)
-        }
-      }
+      if (peers.length === 0) return
+      rememberPeer(peers[0].socketId)
+      await makeOffer(peers[0].socketId)
     })
 
-    // ── New peer joined — if we're the one already here, wait for their offer ──
     socket.on('peer-joined', ({ socketId }: { role: string; socketId: string }) => {
-      remoteIdRef.current = socketId
-      setPeerJoined(true)
-      console.log('Peer joined:', socketId)
+      rememberPeer(socketId)
     })
 
-    // ── Received offer → send answer ─────────────────────────
     socket.on('signal-offer', async ({ offer, from }: { offer: RTCSessionDescriptionInit; from: string }) => {
-      remoteIdRef.current = from
+      rememberPeer(from)
       try {
+        if (pc.signalingState !== 'stable') return
         await pc.setRemoteDescription(new RTCSessionDescription(offer))
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
-        socket.emit('signal-answer', { answer, to: from })
+        socket.emit('signal-answer', { answer, to: from, roomId })
+        await drainIncomingIce()
       } catch (err) {
         console.error('Answer error:', err)
       }
     })
 
-    // ── Received answer ───────────────────────────────────────
     socket.on('signal-answer', async ({ answer }: { answer: RTCSessionDescriptionInit }) => {
       try {
+        if (pc.signalingState !== 'have-local-offer') return
         await pc.setRemoteDescription(new RTCSessionDescription(answer))
+        await drainIncomingIce()
       } catch (err) {
         console.error('Set remote desc error:', err)
       }
     })
 
-    // ── ICE candidates ────────────────────────────────────────
     socket.on('signal-ice', async ({ candidate }: { candidate: RTCIceCandidateInit }) => {
+      if (!pc.remoteDescription) {
+        incomingIceRef.current.push(candidate)
+        return
+      }
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate))
       } catch (err) {
@@ -169,25 +177,26 @@ export function useWebRTC({ roomId, role, localStream }: UseWebRTCProps): WebRTC
       }
     })
 
-    // ── Peer disconnected ─────────────────────────────────────
     socket.on('peer-left', () => {
       setPeerJoined(false)
       setConnectionState('disconnected')
       setRemoteStream(null)
+      remoteStreamRef.current = new MediaStream()
+      remoteIdRef.current = null
     })
 
+    if (socket.connected) handleConnect()
+
     return () => {
-      if (socketRef.current) {
-        socketRef.current.emit('leave-room', { roomId })
-        socketRef.current.off('connect', handleConnect)
-        socketRef.current.off('disconnect', handleDisconnect)
-        socketRef.current.disconnect()
-      }
-      if (pcRef.current) {
-        pcRef.current.close()
-      }
+      makingOfferRef.current = false
+      socket.emit('leave-room', { roomId })
+      socket.removeAllListeners()
+      socket.disconnect()
+      pc.close()
+      pcRef.current = null
+      socketRef.current = null
     }
-  }, [localStream, roomId, role, createPC])
+  }, [localStream, roomId, role])
 
   return { remoteStream, connectionState, peerJoined, socket }
 }

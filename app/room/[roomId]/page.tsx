@@ -94,13 +94,23 @@ export default function RoomPage() {
       .catch(() => {})
   }, [roomId, role])
 
-  // bind remote video
+  // bind remote video (explicit play — autoplay of unmuted remote media often fails)
   useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream
-      setCallStatus('connected')
-    }
+    const el = remoteVideoRef.current
+    if (!el || !remoteStream) return
+    el.srcObject = remoteStream
+    el.muted = false
+    const play = () => { void el.play().catch(() => {}) }
+    play()
+    setCallStatus('connected')
   }, [remoteStream])
+
+  useEffect(() => {
+    const el = localVideoRef.current
+    if (!el || !localStream) return
+    el.srcObject = localStream
+    void el.play().catch(() => {})
+  }, [localStream])
 
   // receive remote transcript chunks via socket
   useEffect(() => {
@@ -412,7 +422,7 @@ export default function RoomPage() {
 
           {/* Remote video */}
           <video ref={remoteVideoRef} autoPlay playsInline
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: remoteStream ? 'block' : 'none' }} />
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: remoteStream ? 'block' : 'none', background: '#050a14' }} />
 
           {/* Waiting screen */}
           {!remoteStream && (
@@ -519,8 +529,17 @@ export default function RoomPage() {
 async function getCameraStream() {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error('MediaDevices not supported')
   try {
-    return await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-  } catch {
-    return await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+    return await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: true,
+    })
+  } catch (err) {
+    console.warn('Camera+mic failed, retrying simpler constraints', err)
+    try {
+      return await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    } catch (err2) {
+      console.warn('Video unavailable, audio only', err2)
+      return await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+    }
   }
 }
