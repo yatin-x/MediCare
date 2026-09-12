@@ -69,6 +69,16 @@ export async function POST(req: Request) {
     const priorCount = await prisma.visit.count({ where: { patientId: patient.id } })
     const visitNumber = visitNumberFromPriorCount(priorCount)
 
+    const openAppt = await prisma.appointment.findFirst({
+      where: {
+        patientId: patient.id,
+        doctorId,
+        visit: null,
+        status: { in: ['scheduled', 'pending', 'in_progress'] },
+      },
+      orderBy: { scheduledAt: 'asc' },
+    })
+
     const visit = await prisma.visit.create({
       data: {
         roomId,
@@ -77,8 +87,16 @@ export async function POST(req: Request) {
         patient: { connect: { id: patient.id } },
         doctorName: doctorName ?? undefined,
         patientName: patient.name,
+        ...(openAppt ? { appointment: { connect: { id: openAppt.id } } } : {}),
       },
     })
+
+    if (openAppt) {
+      await prisma.appointment.update({
+        where: { id: openAppt.id },
+        data: { status: 'in_progress' },
+      })
+    }
 
     return NextResponse.json({
       roomId: visit.roomId,

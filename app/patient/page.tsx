@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
@@ -15,6 +15,8 @@ type Appointment = {
 
 type Visit = {
   id: string
+  roomId?: string
+  status?: string
   visitNumber?: number
   doctorName: string | null
   patientSummary: string | null
@@ -29,17 +31,36 @@ export default function PatientHomePage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [visits, setVisits] = useState<Visit[]>([])
 
-  useEffect(() => {
-    fetch('/api/appointments').then(r => r.json()).then(d => setAppointments(d.appointments ?? []))
-    fetch('/api/visits').then(r => r.json()).then(d => setVisits(d.visits ?? []))
+  const load = useCallback(() => {
+    void fetch('/api/appointments').then(r => r.json()).then(d => setAppointments(d.appointments ?? []))
+    void fetch('/api/visits').then(r => r.json()).then(d => setVisits(d.visits ?? []))
   }, [])
 
-  const now = Date.now()
-  const upcoming = appointments
-    .filter(a => a.status !== 'cancelled' && new Date(a.scheduledAt).getTime() > now - 4 * 60 * 60 * 1000)
-    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())[0]
-  const lastVisit = visits[0]
+  useEffect(() => {
+    load()
+    const timer = setInterval(load, 3000)
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [load])
+
+  const liveAppt = appointments.find(a =>
+    a.visit?.roomId && (a.visit.status === 'active' || a.status === 'in_progress'),
+  )
+  const liveVisit = visits.find(v => v.status === 'active' && v.roomId)
+  const joinRoomId = liveAppt?.visit?.roomId || liveVisit?.roomId || null
+
+  const upcoming = liveAppt ?? appointments
+    .filter(a => a.status !== 'cancelled' && a.status !== 'pending_approval')
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+    .find(a => a.status === 'in_progress' || a.status === 'scheduled' || a.visit?.roomId)
+
+  const lastVisit = visits.find(v => v.status !== 'active') ?? visits[0]
   const pendingFollowUp = appointments.find(a => a.status === 'pending_approval')
+  const waiting = Boolean(upcoming) && !joinRoomId
 
   return (
     <main>
@@ -48,18 +69,25 @@ export default function PatientHomePage() {
 
       <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
         <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>NEXT APPOINTMENT</p>
-        {upcoming ? (
+        {upcoming || joinRoomId ? (
           <>
-            <p style={{ fontWeight: 600 }}>Dr. {upcoming.doctor.name} · {new Date(upcoming.scheduledAt).toLocaleString('en-IN')}</p>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>{upcoming.reason} · {upcoming.status.replace('_', ' ')}</p>
-            {upcoming.visit?.roomId ? (
+            <p style={{ fontWeight: 600 }}>
+              Dr. {(upcoming || liveAppt)?.doctor.name || liveVisit?.doctorName || 'your doctor'}
+              {upcoming ? ` · ${new Date(upcoming.scheduledAt).toLocaleString('en-IN')}` : ''}
+            </p>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+              {(upcoming?.reason || 'Video consult')} · {(upcoming?.status || 'in_progress').replace(/_/g, ' ')}
+            </p>
+            {joinRoomId ? (
               <button className="btn-primary" style={{ marginTop: 14 }}
-                onClick={() => router.push(`/room/${upcoming.visit!.roomId}?role=patient&name=${encodeURIComponent(session?.user?.name || 'Patient')}`)}>
+                onClick={() => router.push(`/room/${joinRoomId}?role=patient&name=${encodeURIComponent(session?.user?.name || 'Patient')}`)}>
                 Join video call
               </button>
-            ) : (
-              <p style={{ fontSize: 13, color: '#f59e0b', marginTop: 12 }}>Waiting for your doctor to start the room.</p>
-            )}
+            ) : waiting ? (
+              <p style={{ fontSize: 13, color: '#f59e0b', marginTop: 12 }}>
+                Waiting for your doctor to start the room. This page checks every few seconds.
+              </p>
+            ) : null}
           </>
         ) : (
           <p style={{ color: 'var(--text-muted)' }}>Nothing booked. Use Book to pick a doctor and time.</p>
@@ -75,7 +103,7 @@ export default function PatientHomePage() {
 
       <div className="glass" style={{ padding: 20 }}>
         <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>LAST VISIT</p>
-        {lastVisit ? (
+        {lastVisit && lastVisit.status !== 'active' ? (
           <>
             <p style={{ fontWeight: 600 }}>Visit #{lastVisit.visitNumber ?? '?'} · {lastVisit.doctorName ? `Dr. ${lastVisit.doctorName}` : 'Consult'}</p>
             <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 14, marginTop: 10, lineHeight: 1.6 }}>
@@ -85,7 +113,7 @@ export default function PatientHomePage() {
               style={{ marginTop: 12, padding: '8px 14px', cursor: 'pointer' }}>Open full report</button>
           </>
         ) : (
-          <p style={{ color: 'var(--text-muted)' }}>No visits yet.</p>
+          <p style={{ color: 'var(--text-muted)' }}>No finished visits yet.</p>
         )}
       </div>
     </main>
