@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Doctor = { id: string; name: string; speciality: string | null }
+type Doctor = { id: string; name: string; email?: string | null; speciality: string | null }
 
 export default function BookPage() {
   const router = useRouter()
@@ -43,7 +43,9 @@ export default function BookPage() {
   return (
     <main>
       <h1 className="font-display" style={{ fontSize: '1.8rem', marginBottom: 8 }}>Book a consult</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>Pick a doctor and a time. They will start the room; you join from Home.</p>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>
+        Pick the doctor who will actually open Dashboard and click Start consult. If two doctors have similar names, use the email.
+      </p>
 
       {doctors.length === 0 ? (
         <p style={{ color: 'var(--text-muted)' }}>No doctors are registered yet. Ask someone to create a doctor account first.</p>
@@ -54,7 +56,7 @@ export default function BookPage() {
             <select value={doctorId} onChange={e => setDoctorId(e.target.value)}
               style={{ width: '100%', padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }}>
               {doctors.map(d => (
-                <option key={d.id} value={d.id}>{d.name}{d.speciality ? ` · ${d.speciality}` : ''}</option>
+                <option key={d.id} value={d.id}>{d.name}{d.email ? ` · ${d.email}` : ''}{d.speciality ? ` · ${d.speciality}` : ''}</option>
               ))}
             </select>
           </div>

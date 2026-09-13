@@ -49,7 +49,7 @@ function DashboardInner() {
     scheduledAt: string
     status: string
     reason: string | null
-    patient: { name: string }
+    patient: { name: string; email?: string | null }
     visit: { roomId: string } | null
   }>>([])
   const [walkInName, setWalkInName] = useState('')
@@ -185,21 +185,39 @@ function DashboardInner() {
         {session?.user?.role !== 'patient' && status === 'authenticated' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
             <div className="glass" style={{ padding: 18 }}>
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>TODAY’S BOOKINGS</p>
-              {appointments.filter(a => a.status !== 'cancelled').length === 0 && (
-                <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No bookings yet. Patients book from their portal.</p>
-              )}
-              {appointments.filter(a => a.status !== 'cancelled').slice(0, 8).map(a => (
-                <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
-                  <div>
-                    <p style={{ fontSize: 14 }}>{a.patient.name}</p>
-                    <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{new Date(a.scheduledAt).toLocaleString('en-IN')} · {a.status}</p>
+              <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6 }}>START THIS PATIENT’S CALL</p>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
+                Click <strong>Start consult</strong> on the booking that matches the patient who is waiting (same name and time). Then copy the room ID from the call screen if they need to join with a code. Oldest leftover bookings are hidden so the live one is easy to find.
+              </p>
+              {(() => {
+                const now = Date.now()
+                const shown = appointments
+                  .filter(a => a.status !== 'cancelled')
+                  .filter(a => a.status === 'in_progress' || a.visit || new Date(a.scheduledAt).getTime() > now - 12 * 60 * 60 * 1000)
+                  .sort((a, b) => {
+                    const live = (x: typeof a) => (x.status === 'in_progress' || x.visit ? 0 : 1)
+                    if (live(a) !== live(b)) return live(a) - live(b)
+                    return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+                  })
+                  .slice(0, 12)
+                if (shown.length === 0) {
+                  return <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No upcoming bookings. Patient must Book you (this login), then you start that row.</p>
+                }
+                return shown.map(a => (
+                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+                    <div>
+                      <p style={{ fontSize: 14 }}>{a.patient.name}{a.patient.email ? ` · ${a.patient.email}` : ''}</p>
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        {new Date(a.scheduledAt).toLocaleString('en-IN')} · {a.status.replace(/_/g, ' ')}
+                        {a.visit?.roomId ? ` · room ${a.visit.roomId}` : ''}
+                      </p>
+                    </div>
+                    <button disabled={starting === a.id} onClick={() => startAppointment(a.id)} className="btn-primary" style={{ padding: '6px 12px', fontSize: 12 }}>
+                      {a.visit ? 'Open room' : (starting === a.id ? 'Starting…' : 'Start consult')}
+                    </button>
                   </div>
-                  <button disabled={starting === a.id} onClick={() => startAppointment(a.id)} className="btn-primary" style={{ padding: '6px 12px', fontSize: 12 }}>
-                    {a.visit ? 'Open room' : (starting === a.id ? 'Starting…' : 'Start consult')}
-                  </button>
-                </div>
-              ))}
+                ))
+              })()}
             </div>
             <div className="glass" style={{ padding: 18 }}>
               <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>WALK-IN ROOM</p>

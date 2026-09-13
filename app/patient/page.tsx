@@ -9,7 +9,7 @@ type Appointment = {
   scheduledAt: string
   status: string
   reason: string | null
-  doctor: { name: string; speciality: string | null }
+  doctor: { name: string; email?: string | null; speciality: string | null }
   visit: { id: string; roomId: string; status: string } | null
 }
 
@@ -30,6 +30,8 @@ export default function PatientHomePage() {
   const { data: session } = useSession()
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [visits, setVisits] = useState<Visit[]>([])
+  const [roomCode, setRoomCode] = useState('')
+  const [joinError, setJoinError] = useState('')
 
   const load = useCallback(() => {
     void fetch('/api/appointments').then(r => r.json()).then(d => setAppointments(d.appointments ?? []))
@@ -60,38 +62,72 @@ export default function PatientHomePage() {
 
   const lastVisit = visits.find(v => v.status !== 'active') ?? visits[0]
   const pendingFollowUp = appointments.find(a => a.status === 'pending_approval')
-  const waiting = Boolean(upcoming) && !joinRoomId
+  const doctorLabel = upcoming
+    ? `Dr. ${upcoming.doctor.name}${upcoming.doctor.email ? ` (${upcoming.doctor.email})` : ''}`
+    : liveVisit?.doctorName ? `Dr. ${liveVisit.doctorName}` : 'your doctor'
+
+  async function joinWithCode(e: React.FormEvent) {
+    e.preventDefault()
+    const id = roomCode.trim().toUpperCase()
+    if (!id) return
+    setJoinError('')
+    const res = await fetch(`/api/room?roomId=${encodeURIComponent(id)}`)
+    if (!res.ok) {
+      setJoinError('No room with that ID. Ask the doctor to click Start consult, then copy the code from the top of their call screen.')
+      return
+    }
+    router.push(`/room/${id}?role=patient&name=${encodeURIComponent(session?.user?.name || 'Patient')}`)
+  }
+
+  function goToLive() {
+    if (!joinRoomId) return
+    router.push(`/room/${joinRoomId}?role=patient&name=${encodeURIComponent(session?.user?.name || 'Patient')}`)
+  }
 
   return (
     <main>
       <h1 className="font-display" style={{ fontSize: '2rem', marginBottom: 8 }}>Hello, {session?.user?.name}</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>Your next visit, last report, and follow-ups live here.</p>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>Book → wait for that same doctor to start → join the call.</p>
 
       <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
-        <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>NEXT APPOINTMENT</p>
+        <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>HOW YOU CONNECT</p>
+        <ol style={{ margin: '0 0 16px 18px', color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7 }}>
+          <li>Book <strong style={{ color: 'var(--text-primary)' }}>the doctor account that will log in</strong> (match the email, not just the first name).</li>
+          <li>That doctor opens Dashboard and clicks <strong style={{ color: 'var(--text-primary)' }}>Start consult</strong> on <em>your</em> booking (same name and time).</li>
+          <li>This page shows <strong style={{ color: 'var(--text-primary)' }}>Join video call</strong>, or type the 8-character room ID from the doctor’s screen.</li>
+        </ol>
+
         {upcoming || joinRoomId ? (
           <>
-            <p style={{ fontWeight: 600 }}>
-              Dr. {(upcoming || liveAppt)?.doctor.name || liveVisit?.doctorName || 'your doctor'}
-              {upcoming ? ` · ${new Date(upcoming.scheduledAt).toLocaleString('en-IN')}` : ''}
-            </p>
+            <p style={{ fontWeight: 600 }}>{doctorLabel}{upcoming ? ` · ${new Date(upcoming.scheduledAt).toLocaleString('en-IN')}` : ''}</p>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
               {(upcoming?.reason || 'Video consult')} · {(upcoming?.status || 'in_progress').replace(/_/g, ' ')}
             </p>
             {joinRoomId ? (
-              <button className="btn-primary" style={{ marginTop: 14 }}
-                onClick={() => router.push(`/room/${joinRoomId}?role=patient&name=${encodeURIComponent(session?.user?.name || 'Patient')}`)}>
-                Join video call
+              <button className="btn-primary" style={{ marginTop: 14 }} onClick={goToLive}>
+                Join video call ({joinRoomId})
               </button>
-            ) : waiting ? (
+            ) : (
               <p style={{ fontSize: 13, color: '#f59e0b', marginTop: 12 }}>
-                Waiting for your doctor to start the room. This page checks every few seconds.
+                Still scheduled — {doctorLabel} has not started <em>this</em> booking yet. If they started a different slot or logged in as another doctor, the Join button will not appear.
               </p>
-            ) : null}
+            )}
           </>
         ) : (
-          <p style={{ color: 'var(--text-muted)' }}>Nothing booked. Use Book to pick a doctor and time.</p>
+          <p style={{ color: 'var(--text-muted)' }}>Nothing booked. Use Book, then have that doctor start the consult.</p>
         )}
+
+        <form onSubmit={joinWithCode} style={{ marginTop: 18, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            value={roomCode}
+            onChange={e => setRoomCode(e.target.value.toUpperCase())}
+            placeholder="Room ID from doctor (e.g. C46B2F3A)"
+            className="font-mono"
+            style={{ flex: 1, minWidth: 180, padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--accent)', letterSpacing: '0.08em' }}
+          />
+          <button type="submit" className="btn-primary" disabled={!roomCode.trim()}>Join with code</button>
+        </form>
+        {joinError && <p style={{ color: '#f59e0b', fontSize: 13, marginTop: 8 }}>{joinError}</p>}
       </div>
 
       {pendingFollowUp && (

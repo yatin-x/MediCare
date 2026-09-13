@@ -395,6 +395,9 @@ export default function RoomPage() {
           <button onClick={copyRoomId} style={{ padding: '3px 10px', background: 'var(--accent-dim)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer' }}>
             {copied ? '✓ Copied' : 'Copy ID'}
           </button>
+          {role === 'doctor' && (
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Patient joins from Home, or types this ID</span>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {/* Audio Recording status indicator */}

@@ -18,7 +18,7 @@ export async function GET() {
       where: { patientId: chart.id },
       orderBy: { scheduledAt: 'asc' },
       include: {
-        doctor: { select: { id: true, name: true, speciality: true } },
+        doctor: { select: { id: true, name: true, email: true, speciality: true } },
         visit: { select: { id: true, roomId: true, status: true } },
       },
     })
@@ -33,7 +33,7 @@ export async function GET() {
     where: { doctorId: user.id },
     orderBy: { scheduledAt: 'asc' },
     include: {
-      patient: { select: { id: true, name: true, allergies: true } },
+      patient: { select: { id: true, name: true, email: true, allergies: true } },
       visit: { select: { id: true, roomId: true, status: true } },
     },
   })
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
       status: 'scheduled',
     },
     include: {
-      doctor: { select: { id: true, name: true, speciality: true } },
+        doctor: { select: { id: true, name: true, email: true, speciality: true } },
       visit: { select: { id: true, roomId: true, status: true } },
     },
   })
