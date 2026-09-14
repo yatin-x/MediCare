@@ -69,6 +69,9 @@ export default function RoomPage() {
   const [whisperStatus, setWhisperStatus] = useState<AsrStatus>('idle')
   const [typedLine, setTypedLine] = useState('')
   const [visitCtx, setVisitCtx] = useState<VisitContext | null>(null)
+  const [hasRemoteVideo, setHasRemoteVideo] = useState(false)
+  const [cameraError, setCameraError] = useState('')
+  const [needsTapToPlay, setNeedsTapToPlay] = useState(false)
 
   // ── WebRTC ────────────────────────────────────────────────────
   const { remoteStream, connectionState, peerJoined, socket } = useWebRTC({
@@ -94,21 +97,34 @@ export default function RoomPage() {
       .catch(() => {})
   }, [roomId, role])
 
-  // bind remote video (explicit play — autoplay of unmuted remote media often fails)
+  // bind remote video — keep the element painted (display:none skips frames → black)
   useEffect(() => {
     const el = remoteVideoRef.current
-    if (!el || !remoteStream) return
+    if (!el || !remoteStream) {
+      setHasRemoteVideo(false)
+      return
+    }
     el.srcObject = remoteStream
-    el.muted = false
-    const play = () => { void el.play().catch(() => {}) }
-    play()
-    setCallStatus('connected')
+    el.muted = true
+    const videoTrack = remoteStream.getVideoTracks()[0]
+    setHasRemoteVideo(Boolean(videoTrack && videoTrack.readyState === 'live'))
+    videoTrack?.addEventListener('unmute', () => setHasRemoteVideo(true))
+    videoTrack?.addEventListener('ended', () => setHasRemoteVideo(false))
+    void el.play().then(() => {
+      el.muted = false
+      setNeedsTapToPlay(false)
+      setCallStatus('connected')
+    }).catch(() => {
+      setNeedsTapToPlay(true)
+      setCallStatus('connected')
+    })
   }, [remoteStream])
 
   useEffect(() => {
     const el = localVideoRef.current
     if (!el || !localStream) return
     el.srcObject = localStream
+    el.muted = true
     void el.play().catch(() => {})
   }, [localStream])
 
@@ -174,10 +190,14 @@ export default function RoomPage() {
 
     getCameraStream().then(stream => {
       setLocalStream(stream)
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream
+      const videoOk = stream.getVideoTracks().some(t => t.readyState === 'live')
+      if (!videoOk) {
+        setCameraError('No camera feed. Allow camera, or close the other tab using this webcam (Linux only allows one app at a time).')
+      }
       setCallStatus('connecting')
     }).catch(err => {
       console.error('Camera error:', err)
+      setCameraError('Camera/mic blocked. Allow permissions and reload.')
       setCallStatus('connecting')
     })
   }, [])
@@ -424,10 +444,33 @@ export default function RoomPage() {
         <div style={{ flex: 1, position: 'relative', background: '#050a14' }}>
 
           {/* Remote video */}
-          <video ref={remoteVideoRef} autoPlay playsInline
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: remoteStream ? 'block' : 'none', background: '#050a14' }} />
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#050a14', display: 'block' }}
+          />
 
-          {/* Waiting screen */}
+          {remoteStream && !hasRemoteVideo && !needsTapToPlay && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b', fontSize: 14, pointerEvents: 'none' }}>
+              Connected, but no camera frames yet — patient should allow camera (one webcam per computer).
+            </div>
+          )}
+          {needsTapToPlay && remoteStream && (
+            <button
+              type="button"
+              onClick={() => {
+                const el = remoteVideoRef.current
+                if (!el) return
+                el.muted = false
+                void el.play().then(() => setNeedsTapToPlay(false)).catch(() => {})
+              }}
+              style={{ position: 'absolute', inset: 0, zIndex: 8, background: 'rgba(0,0,0,0.45)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 16 }}
+            >
+              Click to show video
+            </button>
+          )}
+
           {!remoteStream && (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', background: 'linear-gradient(135deg,#0a0f1e,#0d1929)' }}>
               <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', marginBottom: '16px' }}>
@@ -448,8 +491,16 @@ export default function RoomPage() {
           {/* Local video PiP */}
           <div style={{ position: 'absolute', bottom: 16, right: 16, width: 176, height: 128, borderRadius: '10px', overflow: 'hidden', border: '2px solid var(--border)', background: 'var(--surface)' }}>
             <video ref={localVideoRef} autoPlay muted playsInline
-              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: isCameraOff ? 'none' : 'block' }} />
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: isCameraOff ? 'none' : 'block', background: '#111' }} />
             {isCameraOff && <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontSize: '28px' }}>📷</span></div>}
+            {cameraError && !isCameraOff && (
+              <div style={{ position: 'absolute', inset: 0, padding: 8, fontSize: 10, color: '#f59e0b', background: 'rgba(0,0,0,0.7)' }}>{cameraError}</div>
+            )}
+            {!cameraError && localStream && localStream.getVideoTracks().length === 0 && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#f59e0b', padding: 8, textAlign: 'center' }}>
+                Audio only — camera in use elsewhere
+              </div>
+            )}
             <div style={{ position: 'absolute', bottom: 5, left: 8, fontSize: '10px', color: 'rgba(255,255,255,0.6)' }}>{name}</div>
           </div>
 
@@ -531,18 +582,25 @@ export default function RoomPage() {
 
 async function getCameraStream() {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error('MediaDevices not supported')
-  try {
-    return await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: true,
-    })
-  } catch (err) {
-    console.warn('Camera+mic failed, retrying simpler constraints', err)
+  const attempts: MediaStreamConstraints[] = [
+    { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true },
+    { video: { facingMode: 'user' }, audio: true },
+    { video: true, audio: true },
+    { video: { width: 640, height: 480 }, audio: true },
+  ]
+  let lastError: unknown
+  for (const constraints of attempts) {
     try {
-      return await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    } catch (err2) {
-      console.warn('Video unavailable, audio only', err2)
-      return await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      if (stream.getVideoTracks().some(t => t.readyState === 'live')) return stream
+      stream.getTracks().forEach(t => t.stop())
+    } catch (err) {
+      lastError = err
     }
+  }
+  try {
+    return await navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+  } catch {
+    throw lastError instanceof Error ? lastError : new Error('getUserMedia failed')
   }
 }

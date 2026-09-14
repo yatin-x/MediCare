@@ -120,7 +120,7 @@ export function useLiveTranscript(opts: {
       }
 
       const mime = pickRecorderMime()
-      const audioOnly = new MediaStream([track])
+      const audioOnly = new MediaStream([track.clone()])
       try {
         recorder = mime
           ? new MediaRecorder(audioOnly, { mimeType: mime })
