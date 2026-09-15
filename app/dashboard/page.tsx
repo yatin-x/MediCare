@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 
 interface Visit {
   id: string
@@ -24,10 +24,11 @@ interface Visit {
   visitNumber?: number
 }
 
-const urgencyConfig: Record<string, { color: string; bg: string; border: string; icon: string }> = {
-  low:    { color: '#10b981', bg: '#10b98112', border: '#10b98130', icon: '🟢' },
-  medium: { color: '#f59e0b', bg: '#f59e0b12', border: '#f59e0b30', icon: '🟡' },
-  high:   { color: '#ef4444', bg: '#ef444412', border: '#ef444430', icon: '🔴' },
+function pillClass(urgency: string | null) {
+  if (urgency === 'high') return 'doc-pill doc-pill-high'
+  if (urgency === 'medium') return 'doc-pill doc-pill-medium'
+  if (urgency === 'low') return 'doc-pill doc-pill-low'
+  return 'doc-pill doc-pill-pending'
 }
 
 function DashboardInner() {
@@ -161,75 +162,93 @@ function DashboardInner() {
   }
 
   const reportText = selected ? (selected.patientSummary || selected.report || selected.soapDraft || selected.summary) : null
+  const isDoctorWorkspace = session?.user?.role !== 'patient' && status === 'authenticated'
+  const now = Date.now()
+  const queue = appointments
+    .filter(a => a.status !== 'cancelled')
+    .filter(a => a.status === 'in_progress' || a.visit || new Date(a.scheduledAt).getTime() > now - 12 * 60 * 60 * 1000)
+    .sort((a, b) => {
+      const live = (x: typeof a) => (x.status === 'in_progress' || x.visit ? 0 : 1)
+      if (live(a) !== live(b)) return live(a) - live(b)
+      return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+    })
+    .slice(0, 12)
 
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg)', padding: '24px' }}>
-      <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+    <main className={isDoctorWorkspace ? 'doc-app' : undefined} style={isDoctorWorkspace ? undefined : { minHeight: '100vh', background: 'var(--bg)' }}>
+      {isDoctorWorkspace && (
+        <header className="doc-topbar">
+          <a href="/dashboard" className="doc-brand">MedAssist clinic</a>
+          <div className="doc-topbar-meta">
+            <span>{session?.user?.name || 'Doctor'}</span>
+            <button type="button" className="doc-ghost" onClick={() => signOut({ callbackUrl: '/' })}>Sign out</button>
+          </div>
+        </header>
+      )}
+      <div style={{ maxWidth: 1120, margin: '0 auto', padding: isDoctorWorkspace ? '28px 24px 48px' : 24 }}>
 
+        {!isDoctorWorkspace && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', gap: 16, flexWrap: 'wrap' }}>
           <div>
-            <h1 className="font-display" style={{ fontSize: '2rem', color: 'var(--text-primary)' }}>
+            <h1 className="font-display" style={{ fontSize: '2rem' }}>
               {isPatient ? 'Your visit history' : 'Visit History'}
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
               {isPatient
                 ? `${patientName ? `${patientName} · ` : ''}reports from your consultations`
-                : 'All consultations · PostgreSQL records'}
+                : 'Sign in as a doctor to run today’s clinic.'}
             </p>
           </div>
           <button onClick={() => router.push('/')} style={{ padding: '8px 16px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer' }}>
             Home
           </button>
         </div>
+        )}
 
-        {session?.user?.role !== 'patient' && status === 'authenticated' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-            <div className="glass" style={{ padding: 18 }}>
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 6 }}>START THIS PATIENT’S CALL</p>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
-                Click <strong>Start consult</strong> on the booking that matches the patient who is waiting (same name and time). Then copy the room ID from the call screen if they need to join with a code. Oldest leftover bookings are hidden so the live one is easy to find.
-              </p>
-              {(() => {
-                const now = Date.now()
-                const shown = appointments
-                  .filter(a => a.status !== 'cancelled')
-                  .filter(a => a.status === 'in_progress' || a.visit || new Date(a.scheduledAt).getTime() > now - 12 * 60 * 60 * 1000)
-                  .sort((a, b) => {
-                    const live = (x: typeof a) => (x.status === 'in_progress' || x.visit ? 0 : 1)
-                    if (live(a) !== live(b)) return live(a) - live(b)
-                    return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
-                  })
-                  .slice(0, 12)
-                if (shown.length === 0) {
-                  return <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No upcoming bookings. Patient must Book you (this login), then you start that row.</p>
-                }
-                return shown.map(a => (
-                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+        {isDoctorWorkspace && (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+              <div>
+                <h1 className="font-display" style={{ fontSize: '2rem', marginBottom: 6 }}>Today’s clinic</h1>
+                <p style={{ color: 'var(--doc-muted)', fontSize: 14, maxWidth: 520 }}>
+                  Start the booking that matches the waiting patient. They join from their Home screen, or with the room ID on the call.
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(280px, 0.8fr)', gap: 16, marginBottom: 28 }}>
+              <section className="doc-card" style={{ padding: 20 }}>
+                <p className="doc-label">Queue</p>
+                {queue.length === 0 ? (
+                  <p style={{ color: 'var(--doc-muted)', fontSize: 14, lineHeight: 1.5 }}>
+                    No live or upcoming bookings. Patients book this doctor account, then you start their row.
+                  </p>
+                ) : queue.map(a => (
+                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--doc-line)' }}>
                     <div>
-                      <p style={{ fontSize: 14 }}>{a.patient.name}{a.patient.email ? ` · ${a.patient.email}` : ''}</p>
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                      <p style={{ fontSize: 15, fontWeight: 600 }}>{a.patient.name}</p>
+                      <p style={{ fontSize: 12, color: 'var(--doc-muted)', marginTop: 3 }}>
                         {new Date(a.scheduledAt).toLocaleString('en-IN')} · {a.status.replace(/_/g, ' ')}
-                        {a.visit?.roomId ? ` · room ${a.visit.roomId}` : ''}
+                        {a.visit?.roomId ? ` · ${a.visit.roomId}` : ''}
+                        {a.reason ? ` · ${a.reason}` : ''}
                       </p>
                     </div>
-                    <button disabled={starting === a.id} onClick={() => startAppointment(a.id)} className="btn-primary" style={{ padding: '6px 12px', fontSize: 12 }}>
-                      {a.visit ? 'Open room' : (starting === a.id ? 'Starting…' : 'Start consult')}
+                    <button disabled={starting === a.id} onClick={() => startAppointment(a.id)} className="doc-primary">
+                      {a.visit ? 'Rejoin' : (starting === a.id ? 'Opening…' : 'Start')}
                     </button>
                   </div>
-                ))
-              })()}
+                ))}
+              </section>
+              <section className="doc-card" style={{ padding: 20 }}>
+                <p className="doc-label">Walk-in</p>
+                <input className="doc-input" value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder="Patient name" style={{ marginBottom: 8 }} />
+                <input className="doc-input" value={walkInAllergies} onChange={e => setWalkInAllergies(e.target.value)} placeholder="Allergies (optional)" style={{ marginBottom: 12 }} />
+                <button onClick={walkIn} disabled={!walkInName.trim() || starting === 'walkin'} className="doc-primary" style={{ width: '100%' }}>
+                  {starting === 'walkin' ? 'Creating…' : 'Open walk-in room'}
+                </button>
+              </section>
             </div>
-            <div className="glass" style={{ padding: 18 }}>
-              <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>WALK-IN ROOM</p>
-              <input value={walkInName} onChange={e => setWalkInName(e.target.value)} placeholder="Patient name"
-                style={{ width: '100%', marginBottom: 8, padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
-              <input value={walkInAllergies} onChange={e => setWalkInAllergies(e.target.value)} placeholder="Allergies (optional)"
-                style={{ width: '100%', marginBottom: 10, padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
-              <button onClick={walkIn} disabled={!walkInName.trim() || starting === 'walkin'} className="btn-primary" style={{ width: '100%' }}>
-                {starting === 'walkin' ? 'Creating…' : 'Start walk-in'}
-              </button>
-            </div>
-          </div>
+            <p className="doc-label">Charts</p>
+          </>
         )}
 
         {showPatientLookup && (
@@ -250,28 +269,20 @@ function DashboardInner() {
           <div className="glass" style={{ padding: 16, marginBottom: 16, color: '#f59e0b' }}>{error}</div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
-          {(['all', 'high', 'medium', 'low'] as const).map(key => {
-            const cfg = key === 'all'
-              ? { color: 'var(--accent)', bg: 'var(--accent-dim)', border: 'var(--border)' }
-              : urgencyConfig[key]
-            return (
-              <button key={key} onClick={() => setFilter(key)}
-                style={{
-                  padding: '16px', borderRadius: '10px', cursor: 'pointer', textAlign: 'left',
-                  background: filter === key ? cfg.bg : 'var(--surface)',
-                  border: `1px solid ${filter === key ? cfg.border : 'var(--border)'}`,
-                  transition: 'all 0.2s'
-                }}>
-                <p style={{ fontSize: '24px', fontWeight: 700, color: key === 'all' ? 'var(--accent)' : urgencyConfig[key]?.color || 'var(--text-primary)' }}>
-                  {counts[key]}
-                </p>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', textTransform: 'capitalize' }}>
-                  {key === 'all' ? 'Total Visits' : `${key} Urgency`}
-                </p>
-              </button>
-            )
-          })}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+          {(['all', 'high', 'medium', 'low'] as const).map(key => (
+            <button key={key} type="button" className={isDoctorWorkspace ? 'doc-stat' : undefined} data-on={filter === key ? 'true' : 'false'} onClick={() => setFilter(key)}
+              style={isDoctorWorkspace ? undefined : {
+                padding: 16, borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                background: filter === key ? 'var(--surface-2)' : 'var(--surface)',
+                border: '1px solid var(--border)',
+              }}>
+              <p style={{ fontSize: 24, fontWeight: 700 }}>{counts[key]}</p>
+              <p style={{ fontSize: 12, color: isDoctorWorkspace ? 'var(--doc-muted)' : 'var(--text-secondary)', marginTop: 2, textTransform: 'capitalize' }}>
+                {key === 'all' ? 'All charts' : key}
+              </p>
+            </button>
+          ))}
         </div>
 
         <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
