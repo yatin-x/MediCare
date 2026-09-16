@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 type Doctor = { id: string; name: string; email?: string | null; speciality: string | null }
 
@@ -42,36 +43,40 @@ export default function BookPage() {
 
   return (
     <main>
-      <h1 className="font-display" style={{ fontSize: '1.8rem', marginBottom: 8 }}>Book a consult</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>
-        Pick the doctor who will actually open Dashboard and click Start consult. If two doctors have similar names, use the email.
+      <h1 style={{ fontSize: '1.75rem', marginBottom: 8 }}>Book a consult</h1>
+      <p style={{ color: 'var(--pat-muted)', marginBottom: 20 }}>
+        Choose the doctor who will start your call. If two names look similar, pick by email.
       </p>
 
       {doctors.length === 0 ? (
-        <p style={{ color: 'var(--text-muted)' }}>No doctors are registered yet. Ask someone to create a doctor account first.</p>
+        <div className="pat-card" style={{ padding: 24 }}>
+          <p style={{ color: 'var(--pat-muted)' }}>No doctors are listed yet. Ask your clinic to create a doctor account, then come back here.</p>
+          <Link href="/patient" className="pat-ghost" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none', marginTop: 16 }}>
+            Back home
+          </Link>
+        </div>
       ) : (
-        <form onSubmit={book} className="glass" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={book} className="pat-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Doctor</label>
-            <select value={doctorId} onChange={e => setDoctorId(e.target.value)}
-              style={{ width: '100%', padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }}>
+            <label htmlFor="doctor" className="pat-label">Doctor</label>
+            <select id="doctor" className="pat-select" value={doctorId} onChange={e => setDoctorId(e.target.value)}>
               {doctors.map(d => (
-                <option key={d.id} value={d.id}>{d.name}{d.email ? ` · ${d.email}` : ''}{d.speciality ? ` · ${d.speciality}` : ''}</option>
+                <option key={d.id} value={d.id}>
+                  {d.name}{d.email ? ` · ${d.email}` : ''}{d.speciality ? ` · ${d.speciality}` : ''}
+                </option>
               ))}
             </select>
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Date & time</label>
-            <input type="datetime-local" required value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}
-              style={{ width: '100%', padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
+            <label htmlFor="when" className="pat-label">Date and time</label>
+            <input id="when" className="pat-input" type="datetime-local" required value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Reason (optional)</label>
-            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. follow-up cough"
-              style={{ width: '100%', padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
+            <label htmlFor="reason" className="pat-label">Reason (optional)</label>
+            <input id="reason" className="pat-input" value={reason} onChange={e => setReason(e.target.value)} placeholder="e.g. follow-up cough" />
           </div>
-          {error && <p style={{ color: '#f59e0b', fontSize: 13 }}>{error}</p>}
-          <button type="submit" disabled={busy || !doctorId} className="btn-primary">
+          {error && <p role="alert" style={{ color: 'var(--pat-warn)', fontSize: 14 }}>{error}</p>}
+          <button type="submit" disabled={busy || !doctorId} className="pat-cta">
             {busy ? 'Booking…' : 'Confirm booking'}
           </button>
         </form>

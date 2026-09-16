@@ -50,25 +50,35 @@ function LoginInner() {
     }
   }
 
+  const doctorLogin = role === 'doctor'
+  const patientLogin = role === 'patient'
+  const shell = doctorLogin ? 'doc-app' : 'pat-app'
+  const card = doctorLogin ? 'doc-card' : 'pat-card'
+  const field = doctorLogin ? 'doc-input' : 'pat-input'
+  const labelColor = doctorLogin ? 'var(--doc-muted)' : 'var(--pat-muted)'
+  const submitClass = doctorLogin ? 'doc-primary' : 'pat-cta'
+
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div className="glass" style={{ width: '100%', maxWidth: 420, padding: 32 }}>
-        <Link href="/" style={{ fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none' }}>← Home</Link>
+    <main className={shell} style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div className={card} style={{ width: '100%', maxWidth: 420, padding: 32 }}>
+        <Link href="/" style={{ fontSize: 14, color: labelColor, textDecoration: 'none' }}>Home</Link>
         <h1 className="font-display" style={{ fontSize: '1.8rem', margin: '16px 0 8px' }}>
-          {isRegistering ? 'Create account' : 'Sign in'}
+          {isRegistering
+            ? (role === 'doctor' ? 'Create clinic account' : 'Create your account')
+            : (role === 'doctor' ? 'Clinic sign-in' : 'Patient sign-in')}
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>
-          {role === 'patient' ? 'Patient portal' : 'Doctor workspace'}
+        <p style={{ fontSize: 15, color: labelColor, marginBottom: 20 }}>
+          {patientLogin ? 'Book, join, and read your visit summaries.' : 'Queue, rooms, and notes for today’s consults.'}
         </p>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20, background: 'var(--bg)', borderRadius: 8, padding: 4 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, background: doctorLogin ? '#efece4' : '#cffafe', borderRadius: 8, padding: 4 }} role="tablist" aria-label="Account type">
           {(['patient', 'doctor'] as const).map(r => (
             <button key={r} type="button" onClick={() => setRole(r)}
               style={{
-                flex: 1, padding: 8, border: 'none', borderRadius: 6, cursor: 'pointer',
-                background: role === r ? 'var(--accent)' : 'transparent',
-                color: role === r ? '#0a0f1e' : 'var(--text-secondary)',
-                fontWeight: 600, fontSize: 14,
+                flex: 1, minHeight: 44, padding: 8, border: 'none', borderRadius: 6, cursor: 'pointer',
+                background: role === r ? (doctorLogin ? 'var(--doc-pine)' : 'var(--pat-primary)') : 'transparent',
+                color: role === r ? '#faf8f4' : labelColor,
+                fontWeight: 600, fontSize: 15,
               }}>
               {r === 'patient' ? 'Patient' : 'Doctor'}
             </button>
@@ -78,27 +88,24 @@ function LoginInner() {
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {isRegistering && (
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Name</label>
-              <input value={name} onChange={e => setName(e.target.value)} required
-                style={{ width: '100%', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
+              <label htmlFor="reg-name" style={{ display: 'block', fontSize: 13, color: labelColor, marginBottom: 6 }}>Name</label>
+              <input id="reg-name" value={name} onChange={e => setName(e.target.value)} required className={field} />
             </div>
           )}
           <div>
-            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              style={{ width: '100%', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
+            <label htmlFor="email" style={{ display: 'block', fontSize: 13, color: labelColor, marginBottom: 6 }}>Email</label>
+            <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} required className={field} autoComplete="email" />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6}
-              style={{ width: '100%', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
+            <label htmlFor="password" style={{ display: 'block', fontSize: 13, color: labelColor, marginBottom: 6 }}>Password</label>
+            <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} className={field} autoComplete={isRegistering ? 'new-password' : 'current-password'} />
           </div>
-          {error && <p style={{ color: '#f59e0b', fontSize: 13 }}>{error}</p>}
-          <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', padding: 12 }}>
+          {error && <p role="alert" style={{ color: doctorLogin ? 'var(--doc-high)' : 'var(--pat-warn)', fontSize: 14 }}>{error}</p>}
+          <button type="submit" disabled={loading} className={submitClass} style={{ width: '100%' }}>
             {loading ? 'Please wait…' : (isRegistering ? `Register as ${role}` : 'Log in')}
           </button>
           <button type="button" onClick={() => setIsRegistering(!isRegistering)}
-            style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 13 }}>
+            style={{ background: 'none', border: 'none', color: doctorLogin ? 'var(--doc-pine)' : 'var(--pat-primary)', cursor: 'pointer', fontSize: 14, minHeight: 44 }}>
             {isRegistering ? 'Already have an account? Log in' : 'Need an account? Register'}
           </button>
         </form>

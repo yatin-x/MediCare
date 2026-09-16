@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=Figtree:wght@400;500;600;700&family=Noto+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -248,4 +248,201 @@ html, body {
 
 .doc-approve { background: var(--doc-low); color: #fff; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-weight: 600; font-size: 12px; }
 .doc-reject { background: var(--doc-high); color: #fff; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-weight: 600; font-size: 12px; }
+
+@media (max-width: 860px) {
+  .doc-queue { grid-template-columns: 1fr !important; }
+  .doc-topbar { padding: 12px 16px; }
+}
+
+/* Patient portal — accessible healthcare (cyan + care green) */
+.pat-app {
+  --pat-bg: #ecfeff;
+  --pat-ink: #164e63;
+  --pat-muted: #155e75;
+  --pat-line: #a5f3fc;
+  --pat-paper: #ffffff;
+  --pat-primary: #0891b2;
+  --pat-cta: #059669;
+  --pat-warn: #b45309;
+  min-height: 100vh;
+  background: var(--pat-bg);
+  color: var(--pat-ink);
+  font-family: Figtree, 'Noto Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.pat-app h1, .pat-app h2, .pat-app .font-display {
+  font-family: Figtree, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--pat-ink);
+}
+
+.pat-skip {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 80;
+  background: #fff;
+  color: var(--pat-ink);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.pat-skip:focus { top: 12px; }
+
+.pat-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background: var(--pat-paper);
+  border-bottom: 1px solid var(--pat-line);
+}
+
+.pat-brand {
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--pat-primary);
+  text-decoration: none;
+}
+
+.pat-nav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pat-nav a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pat-muted);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.pat-nav a:hover { background: #cffafe; color: var(--pat-ink); }
+.pat-nav a[aria-current="page"] {
+  color: var(--pat-primary);
+  box-shadow: inset 0 -3px 0 var(--pat-primary);
+  background: transparent;
+}
+
+.pat-topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--pat-muted);
+}
+
+.pat-card {
+  background: var(--pat-paper);
+  border: 1px solid var(--pat-line);
+  border-radius: 12px;
+}
+
+.pat-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pat-muted);
+  margin-bottom: 8px;
+}
+
+.pat-input, .pat-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #67e8f9;
+  border-radius: 8px;
+  color: var(--pat-ink);
+  font-size: 16px;
+  font-family: inherit;
+}
+
+.pat-cta, .pat-ghost, .pat-linkbtn {
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.pat-cta {
+  background: var(--pat-cta);
+  color: #fff;
+  border: none;
+}
+
+.pat-cta:hover { background: #047857; }
+.pat-cta:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.pat-ghost {
+  background: #fff;
+  color: var(--pat-ink);
+  border: 1px solid var(--pat-line);
+}
+
+.pat-ghost:hover { background: #cffafe; }
+
+.pat-linkbtn {
+  background: transparent;
+  border: none;
+  color: #b91c1c;
+}
+
+.pat-app a:focus-visible,
+.pat-app button:focus-visible,
+.pat-app input:focus-visible,
+.pat-app select:focus-visible,
+.pat-app summary:focus-visible {
+  outline: 3px solid var(--pat-primary);
+  outline-offset: 2px;
+}
+
+.pat-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #ecfeff;
+  color: var(--pat-primary);
+  border: 1px solid var(--pat-line);
+}
+
+.pat-pill-high { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
+.pat-pill-medium { background: #fff7ed; color: #b45309; border-color: #fed7aa; }
+.pat-pill-low { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+
+@media (max-width: 720px) {
+  .pat-topbar { padding: 10px 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pat-app *, .pat-app *::before, .pat-app *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
 

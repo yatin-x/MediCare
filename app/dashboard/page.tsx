@@ -215,7 +215,7 @@ function DashboardInner() {
                 </p>
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(280px, 0.8fr)', gap: 16, marginBottom: 28 }}>
+            <div className="doc-queue" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(280px, 0.8fr)', gap: 16, marginBottom: 28 }}>
               <section className="doc-card" style={{ padding: 20 }}>
                 <p className="doc-label">Queue</p>
                 {queue.length === 0 ? (
@@ -266,7 +266,7 @@ function DashboardInner() {
         )}
 
         {error && (
-          <div className="glass" style={{ padding: 16, marginBottom: 16, color: '#f59e0b' }}>{error}</div>
+          <div className={isDoctorWorkspace ? 'doc-card' : 'glass'} style={{ padding: 16, marginBottom: 16, color: isDoctorWorkspace ? 'var(--doc-high)' : '#f59e0b' }}>{error}</div>
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
@@ -289,68 +289,55 @@ function DashboardInner() {
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {loading ? (
-              <div className="glass" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                Loading visits...
+              <div className={isDoctorWorkspace ? 'doc-card' : 'glass'} style={{ padding: 48, textAlign: 'center', color: isDoctorWorkspace ? 'var(--doc-muted)' : 'var(--text-secondary)' }}>
+                Loading charts…
               </div>
             ) : filtered.length === 0 ? (
-              <div className="glass" style={{ padding: '48px', textAlign: 'center' }}>
-                <p style={{ fontSize: '32px', marginBottom: '12px' }}>🏥</p>
-                <p style={{ color: 'var(--text-secondary)' }}>
+              <div className={isDoctorWorkspace ? 'doc-card' : 'glass'} style={{ padding: 48, textAlign: 'center' }}>
+                <p style={{ color: isDoctorWorkspace ? 'var(--doc-muted)' : 'var(--text-secondary)' }}>
                   {isPatient
                     ? 'No visits found for this room yet. Use the same room ID from your consult, or finish End & Analyze first.'
-                    : 'No visits found. Log in as the doctor who created the rooms.'}
+                    : 'No charts yet. Finish a consult, or sign in as the doctor who ran the rooms.'}
                 </p>
-                <button onClick={() => router.push('/')} className="btn-primary" style={{ marginTop: '16px' }}>
-                  Back home
-                </button>
               </div>
             ) : (
               filtered.map(visit => {
-                const cfg = urgencyConfig[visit.urgency || 'low'] || urgencyConfig.low
                 const isActive = selected?.id === visit.id
                 return (
-                  <div key={visit.id} onClick={() => setSelected(visit)}
-                    style={{
-                      padding: '16px 20px', borderRadius: '10px', cursor: 'pointer',
-                      background: isActive ? cfg.bg : 'var(--surface)',
-                      border: `1px solid ${isActive ? cfg.border : 'var(--border)'}`,
-                      transition: 'all 0.15s',
-                      display: 'flex', alignItems: 'center', gap: '16px'
+                  <div key={visit.id} onClick={() => setSelected(visit)} className={isDoctorWorkspace ? 'doc-row' : undefined} data-on={isActive ? 'true' : 'false'}
+                    style={isDoctorWorkspace ? undefined : {
+                      padding: '16px 20px', borderRadius: 10, cursor: 'pointer',
+                      background: isActive ? 'var(--surface-2)' : 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      display: 'flex', alignItems: 'center', gap: 16
                     }}>
-                    <div style={{ fontSize: '24px' }}>{cfg.icon}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <p style={{ fontWeight: 600, fontSize: '15px' }}>
-                          {isPatient ? (visit.doctorName ? `Dr. ${visit.doctorName}` : 'Consultation') : (visit.patientName || 'Unknown Patient')}
-                          <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: 12 }}> · visit #{visitOrdinal(visit)}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <p style={{ fontWeight: 600, fontSize: 15 }}>
+                          {isPatient ? (visit.doctorName ? `Dr. ${visit.doctorName}` : 'Consultation') : (visit.patientName || 'Unnamed patient')}
+                          <span style={{ fontWeight: 400, color: isDoctorWorkspace ? 'var(--doc-muted)' : 'var(--text-muted)', fontSize: 12 }}> · #{visitOrdinal(visit)}</span>
                         </p>
-                        <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '20px', background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, textTransform: 'uppercase', fontWeight: 600 }}>
-                          {visit.urgency || 'pending'}
+                        <span className={isDoctorWorkspace ? pillClass(visit.urgency) : undefined} style={isDoctorWorkspace ? undefined : { fontSize: 11, textTransform: 'uppercase' }}>
+                          {visit.urgency || 'draft'}
                         </span>
                       </div>
-                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>
-                        {isPatient ? visit.patientName : `Dr. ${visit.doctorName}`} · {formatDate(visit.createdAt)}
+                      <p style={{ fontSize: 12, color: isDoctorWorkspace ? 'var(--doc-muted)' : 'var(--text-secondary)', marginTop: 4 }}>
+                        {formatDate(visit.createdAt)}
+                        {visit.symptoms?.length ? ` · ${visit.symptoms.slice(0, 3).join(', ')}` : ''}
                       </p>
-                      {visit.symptoms?.length > 0 && (
-                        <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                          {visit.symptoms.slice(0, 3).join(', ')}{visit.symptoms.length > 3 ? '...' : ''}
-                        </p>
-                      )}
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <p className="font-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{visit.roomId}</p>
+                      <p className="font-mono" style={{ fontSize: 11, color: isDoctorWorkspace ? 'var(--doc-muted)' : 'var(--text-muted)' }}>{visit.roomId}</p>
                       <button
+                        className={isDoctorWorkspace ? 'doc-ghost' : undefined}
                         onClick={(e) => {
                           e.stopPropagation()
                           router.push(isPatient ? `/report/${visit.id}` : `/visit/${visit.id}`)
                         }}
-                        style={{ marginTop: 6, fontSize: 11, padding: '2px 8px', cursor: 'pointer' }}
+                        style={{ marginTop: 6, fontSize: 12, padding: '4px 10px', cursor: 'pointer' }}
                       >
-                        {isPatient ? 'Open report' : 'Cockpit'}
+                        {isPatient ? 'Report' : 'Open note'}
                       </button>
-                      <p style={{ fontSize: '11px', color: cfg.color, marginTop: '4px' }}>
-                        {visit.confidence ? `${(visit.confidence * 100).toFixed(0)}% conf.` : ''}
-                      </p>
                     </div>
                   </div>
                 )
@@ -359,72 +346,34 @@ function DashboardInner() {
           </div>
 
           {selected && (
-            <div className="glass" style={{ width: '380px', padding: '20px', height: 'fit-content', position: 'sticky', top: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <p style={{ fontWeight: 600, fontSize: '15px' }}>
-                  Visit #{visitOrdinal(selected)} report
+            <aside className={isDoctorWorkspace ? 'doc-card' : 'glass'} style={{ width: 360, padding: 20, height: 'fit-content', position: 'sticky', top: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: 15 }}>{selected.patientName || 'Patient'} · #{visitOrdinal(selected)}</p>
+                  <p style={{ fontSize: 12, color: isDoctorWorkspace ? 'var(--doc-muted)' : 'var(--text-muted)', marginTop: 4 }}>{formatDate(selected.createdAt)}</p>
+                </div>
+                <button type="button" onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}>Close</button>
+              </div>
+              <span className={isDoctorWorkspace ? pillClass(selected.urgency) : undefined}>{selected.urgency || 'draft'}</span>
+              {selected.confidence != null && (
+                <p style={{ fontSize: 12, margin: '10px 0 14px', color: isDoctorWorkspace ? 'var(--doc-muted)' : 'var(--text-secondary)' }}>
+                  Model confidence {(selected.confidence * 100).toFixed(0)}%
                 </p>
-                <button onClick={() => setSelected(null)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }}>✕</button>
-              </div>
-
-              {(() => {
-                const cfg = urgencyConfig[selected.urgency || 'low'] || urgencyConfig.low
-                return (
-                  <div style={{ padding: '10px 14px', background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: '8px', marginBottom: '14px' }}>
-                    <p style={{ color: cfg.color, fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-                      {cfg.icon} {selected.urgency || 'pending'} urgency
-                    </p>
-                    {selected.confidence && (
-                      <p style={{ color: cfg.color, fontSize: '11px', opacity: 0.8, marginTop: '2px' }}>
-                        {(selected.confidence * 100).toFixed(1)}% confidence
-                      </p>
-                    )}
-                  </div>
-                )
-              })()}
-
-              <div style={{ marginBottom: '14px' }}>
-                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Report</p>
-                {reportText ? (
-                  <pre style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.7, whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit' }}>{reportText}</pre>
-                ) : (
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                    No report yet. End the call and wait for analysis to finish.
-                  </p>
-                )}
-              </div>
-
-              {selected.symptoms?.length > 0 && (
-                <div style={{ marginBottom: '12px' }}>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Symptoms</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {selected.symptoms.map(s => (
-                      <span key={s} style={{ padding: '3px 10px', background: '#ef444418', color: '#ef4444', border: '1px solid #ef444430', borderRadius: '20px', fontSize: '12px' }}>{s}</span>
-                    ))}
-                  </div>
-                </div>
               )}
-
-              {selected.medicines?.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Medicines</p>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {selected.medicines.map(m => (
-                      <span key={m} style={{ padding: '3px 10px', background: '#3b82f618', color: '#3b82f6', border: '1px solid #3b82f630', borderRadius: '20px', fontSize: '12px' }}>{m}</span>
-                    ))}
-                  </div>
-                </div>
+              <p className={isDoctorWorkspace ? 'doc-label' : undefined} style={{ marginTop: 12 }}>Note preview</p>
+              {reportText ? (
+                <pre style={{ fontSize: 13, lineHeight: 1.65, whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit', maxHeight: 280, overflow: 'auto' }}>{reportText}</pre>
+              ) : (
+                <p style={{ fontSize: 13, color: isDoctorWorkspace ? 'var(--doc-muted)' : 'var(--text-muted)' }}>No note yet. End the call and wait for analysis.</p>
               )}
-
               <button
                 onClick={() => router.push(isPatient ? `/report/${selected.id}` : `/visit/${selected.id}`)}
-                className="btn-primary"
-                style={{ width: '100%', marginTop: 8, padding: '10px' }}
+                className={isDoctorWorkspace ? 'doc-primary' : 'btn-primary'}
+                style={{ width: '100%', marginTop: 16, padding: 10 }}
               >
-                {isPatient ? 'Full visit report →' : 'Open doctor cockpit →'}
+                {isPatient ? 'Full report' : 'Review in cockpit'}
               </button>
-            </div>
+            </aside>
           )}
         </div>
       </div>

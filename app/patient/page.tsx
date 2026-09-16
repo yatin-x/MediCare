@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import Link from 'next/link'
 
 type Appointment = {
   id: string
@@ -63,7 +64,7 @@ export default function PatientHomePage() {
   const lastVisit = visits.find(v => v.status !== 'active') ?? visits[0]
   const pendingFollowUp = appointments.find(a => a.status === 'pending_approval')
   const doctorLabel = upcoming
-    ? `Dr. ${upcoming.doctor.name}${upcoming.doctor.email ? ` (${upcoming.doctor.email})` : ''}`
+    ? `Dr. ${upcoming.doctor.name}`
     : liveVisit?.doctorName ? `Dr. ${liveVisit.doctorName}` : 'your doctor'
 
   async function joinWithCode(e: React.FormEvent) {
@@ -73,7 +74,7 @@ export default function PatientHomePage() {
     setJoinError('')
     const res = await fetch(`/api/room?roomId=${encodeURIComponent(id)}`)
     if (!res.ok) {
-      setJoinError('No room with that ID. Ask the doctor to click Start consult, then copy the code from the top of their call screen.')
+      setJoinError('That room ID is not live yet. Wait until the doctor starts your booking, then try again.')
       return
     }
     router.push(`/room/${id}?role=patient&name=${encodeURIComponent(session?.user?.name || 'Patient')}`)
@@ -86,72 +87,93 @@ export default function PatientHomePage() {
 
   return (
     <main>
-      <h1 className="font-display" style={{ fontSize: '2rem', marginBottom: 8 }}>Hello, {session?.user?.name}</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>Book → wait for that same doctor to start → join the call.</p>
+      <h1 style={{ fontSize: '1.85rem', marginBottom: 8 }}>Hello, {session?.user?.name}</h1>
+      <p style={{ color: 'var(--pat-muted)', marginBottom: 24 }}>
+        Book a doctor, join when they start, then read your care summary here.
+      </p>
 
-      <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
-        <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>HOW YOU CONNECT</p>
-        <ol style={{ margin: '0 0 16px 18px', color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7 }}>
-          <li>Book <strong style={{ color: 'var(--text-primary)' }}>the doctor account that will log in</strong> (match the email, not just the first name).</li>
-          <li>That doctor opens Dashboard and clicks <strong style={{ color: 'var(--text-primary)' }}>Start consult</strong> on <em>your</em> booking (same name and time).</li>
-          <li>This page shows <strong style={{ color: 'var(--text-primary)' }}>Join video call</strong>, or type the 8-character room ID from the doctor’s screen.</li>
-        </ol>
-
+      <section className="pat-card" style={{ padding: 22, marginBottom: 16 }} aria-labelledby="next-step">
+        <h2 id="next-step" className="pat-label">Your next step</h2>
         {upcoming || joinRoomId ? (
           <>
-            <p style={{ fontWeight: 600 }}>{doctorLabel}{upcoming ? ` · ${new Date(upcoming.scheduledAt).toLocaleString('en-IN')}` : ''}</p>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
-              {(upcoming?.reason || 'Video consult')} · {(upcoming?.status || 'in_progress').replace(/_/g, ' ')}
-            </p>
+            <p style={{ fontWeight: 700, fontSize: 18 }}>{doctorLabel}</p>
+            {upcoming && (
+              <p style={{ fontSize: 15, color: 'var(--pat-muted)', marginTop: 4 }}>
+                {new Date(upcoming.scheduledAt).toLocaleString('en-IN')}
+                {upcoming.reason ? ` · ${upcoming.reason}` : ''}
+              </p>
+            )}
             {joinRoomId ? (
-              <button className="btn-primary" style={{ marginTop: 14 }} onClick={goToLive}>
-                Join video call ({joinRoomId})
+              <button type="button" className="pat-cta" style={{ marginTop: 16 }} onClick={goToLive}>
+                Join video call
               </button>
             ) : (
-              <p style={{ fontSize: 13, color: '#f59e0b', marginTop: 12 }}>
-                Still scheduled — {doctorLabel} has not started <em>this</em> booking yet. If they started a different slot or logged in as another doctor, the Join button will not appear.
+              <p style={{ fontSize: 15, color: 'var(--pat-warn)', marginTop: 12 }} role="status">
+                Waiting for {doctorLabel} to start this booking. Keep this page open — Join appears automatically.
               </p>
             )}
           </>
         ) : (
-          <p style={{ color: 'var(--text-muted)' }}>Nothing booked. Use Book, then have that doctor start the consult.</p>
+          <>
+            <p style={{ color: 'var(--pat-muted)' }}>You have nothing booked.</p>
+            <Link href="/patient/book" className="pat-cta" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none', marginTop: 14 }}>
+              Book a consult
+            </Link>
+          </>
         )}
 
-        <form onSubmit={joinWithCode} style={{ marginTop: 18, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            value={roomCode}
-            onChange={e => setRoomCode(e.target.value.toUpperCase())}
-            placeholder="Room ID from doctor (e.g. C46B2F3A)"
-            className="font-mono"
-            style={{ flex: 1, minWidth: 180, padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--accent)', letterSpacing: '0.08em' }}
-          />
-          <button type="submit" className="btn-primary" disabled={!roomCode.trim()}>Join with code</button>
+        <form onSubmit={joinWithCode} style={{ marginTop: 20, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <label htmlFor="room-code" className="pat-label">Join with a room code</label>
+            <input
+              id="room-code"
+              value={roomCode}
+              onChange={e => setRoomCode(e.target.value.toUpperCase())}
+              placeholder="e.g. C46B2F3A"
+              className="pat-input font-mono"
+              autoComplete="off"
+              aria-describedby={joinError ? 'join-error' : undefined}
+            />
+          </div>
+          <button type="submit" className="pat-ghost" disabled={!roomCode.trim()}>Join</button>
         </form>
-        {joinError && <p style={{ color: '#f59e0b', fontSize: 13, marginTop: 8 }}>{joinError}</p>}
-      </div>
+        {joinError && <p id="join-error" role="alert" style={{ color: 'var(--pat-warn)', fontSize: 14, marginTop: 8 }}>{joinError}</p>}
+
+        <details style={{ marginTop: 16, color: 'var(--pat-muted)', fontSize: 14 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--pat-ink)' }}>How joining works</summary>
+          <ol style={{ margin: '10px 0 0 18px', lineHeight: 1.7 }}>
+            <li>Book the doctor who will actually log in (match the email if names look similar).</li>
+            <li>They start <em>your</em> booking from their queue.</li>
+            <li>Join here, or type the 8-character code from their call screen.</li>
+          </ol>
+        </details>
+      </section>
 
       {pendingFollowUp && (
-        <div className="glass" style={{ padding: 20, marginBottom: 16, borderColor: '#f59e0b55' }}>
-          <p style={{ fontSize: 11, color: '#f59e0b', marginBottom: 8 }}>FOLLOW-UP REQUEST</p>
-          <p style={{ fontSize: 14 }}>Requested follow-up (waiting for doctor) with Dr. {pendingFollowUp.doctor.name}.</p>
-        </div>
+        <section className="pat-card" style={{ padding: 20, marginBottom: 16 }} aria-labelledby="follow-up">
+          <h2 id="follow-up" className="pat-label">Follow-up</h2>
+          <p>Requested with Dr. {pendingFollowUp.doctor.name}. Waiting for the doctor to confirm.</p>
+        </section>
       )}
 
-      <div className="glass" style={{ padding: 20 }}>
-        <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>LAST VISIT</p>
+      <section className="pat-card" style={{ padding: 22 }} aria-labelledby="last-visit">
+        <h2 id="last-visit" className="pat-label">Last visit</h2>
         {lastVisit && lastVisit.status !== 'active' ? (
           <>
-            <p style={{ fontWeight: 600 }}>Visit #{lastVisit.visitNumber ?? '?'} · {lastVisit.doctorName ? `Dr. ${lastVisit.doctorName}` : 'Consult'}</p>
-            <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 14, marginTop: 10, lineHeight: 1.6 }}>
-              {lastVisit.patientSummary || lastVisit.report || 'Report still generating — finish End & Analyze.'}
+            <p style={{ fontWeight: 700 }}>
+              Visit #{lastVisit.visitNumber ?? '—'} · {lastVisit.doctorName ? `Dr. ${lastVisit.doctorName}` : 'Consult'}
+            </p>
+            <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 15, marginTop: 10, lineHeight: 1.65, maxHeight: 180, overflow: 'auto' }}>
+              {lastVisit.patientSummary || lastVisit.report || 'Your summary will appear after the consult is analysed.'}
             </pre>
-            <button onClick={() => router.push(`/report/${lastVisit.id}`)}
-              style={{ marginTop: 12, padding: '8px 14px', cursor: 'pointer' }}>Open full report</button>
+            <button type="button" className="pat-ghost" style={{ marginTop: 14 }} onClick={() => router.push(`/report/${lastVisit.id}`)}>
+              Open full report
+            </button>
           </>
         ) : (
-          <p style={{ color: 'var(--text-muted)' }}>No finished visits yet.</p>
+          <p style={{ color: 'var(--pat-muted)' }}>No finished visits yet. After a consult, your care summary will show up here.</p>
         )}
-      </div>
+      </section>
     </main>
   )
 }

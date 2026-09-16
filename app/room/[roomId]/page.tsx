@@ -270,51 +270,51 @@ export default function RoomPage() {
 
   // ── Urgency config ────────────────────────────────────────────
   const urgencyConfig = {
-    low:    { color: '#10b981', bg: '#10b98118', border: '#10b98133', label: '🟢 LOW URGENCY',    icon: '✅' },
-    medium: { color: '#f59e0b', bg: '#f59e0b18', border: '#f59e0b33', label: '🟡 MEDIUM URGENCY', icon: '⚠️' },
-    high:   { color: '#ef4444', bg: '#ef444418', border: '#ef444433', label: '🔴 HIGH URGENCY',   icon: '🚨' },
+    low:    { color: '#3f6212', bg: '#f0fdf4', border: '#d6d0c4', label: 'Low urgency' },
+    medium: { color: '#b45309', bg: '#fff7ed', border: '#d6d0c4', label: 'Medium urgency' },
+    high:   { color: '#9f1239', bg: '#fff1f2', border: '#d6d0c4', label: 'High urgency' },
   }
 
   // ─────────────────────────────────────────────────────────────
   // RENDER: Ended
   // ─────────────────────────────────────────────────────────────
   if (callStatus === 'ended') {
+    const doctorEnd = role === 'doctor'
+    const patientEnd = role === 'patient'
     return (
-      <main style={{ minHeight: '100vh', background: 'var(--bg)', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <main className={doctorEnd ? 'doc-app' : patientEnd ? 'pat-app' : undefined} style={{ minHeight: '100vh', background: (doctorEnd || patientEnd) ? undefined : 'var(--bg)', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ width: '100%', maxWidth: '720px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
             <div>
-              <h1 className="font-display" style={{ fontSize: '1.8rem' }}>Consultation Summary</h1>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
+              <h1 className="font-display" style={{ fontSize: '1.8rem' }}>{doctorEnd ? 'Consult closed' : 'Consultation Summary'}</h1>
+              <p style={{ color: doctorEnd ? 'var(--doc-muted)' : 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
                 Room {roomId} · {formatDuration(callDuration)}
                 {analysis?.visitNumber ? ` · visit #${analysis.visitNumber}` : ''}
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {role === 'doctor' && analysis?.visitId && (
-                <button onClick={() => router.push(`/visit/${analysis.visitId}`)}
-                  style={{ padding: '8px 18px', background: 'var(--accent-dim)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--accent)', cursor: 'pointer' }}>
-                  Doctor cockpit
+                <button onClick={() => router.push(`/visit/${analysis.visitId}`)} className="doc-primary">
+                  Review note
                 </button>
               )}
               {role === 'patient' && analysis?.visitId && (
-                <button onClick={() => router.push(`/report/${analysis.visitId}`)}
-                  style={{ padding: '8px 18px', background: 'var(--accent-dim)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--accent)', cursor: 'pointer' }}>
+                <button onClick={() => router.push(`/report/${analysis.visitId}`)} className="pat-cta">
                   View report
                 </button>
               )}
               <button onClick={() => router.push(role === 'patient' ? '/patient/visits' : '/dashboard')}
-                style={{ padding: '8px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                {role === 'patient' ? 'My visit history →' : 'Dashboard →'}
+                className={doctorEnd ? 'doc-ghost' : patientEnd ? 'pat-ghost' : undefined}
+                style={(doctorEnd || patientEnd) ? undefined : { padding: '8px 18px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                {role === 'patient' ? 'My visit history' : 'Back to queue'}
               </button>
             </div>
           </div>
 
           {isAnalyzing ? (
-            <div className="glass" style={{ padding: '60px', textAlign: 'center' }}>
-              <div style={{ fontSize: '52px', marginBottom: '16px' }}>🧠</div>
-              <p style={{ color: 'var(--accent)', fontSize: '16px', fontWeight: 600 }}>Analyzing consultation...</p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '8px' }}>Encounter orchestrator: observe → plan → tools → verify</p>
+            <div className={doctorEnd ? 'doc-card' : 'glass'} style={{ padding: '48px', textAlign: 'center' }}>
+              <p style={{ fontSize: '16px', fontWeight: 600 }}>Writing the consult note…</p>
+              <p style={{ color: doctorEnd ? 'var(--doc-muted)' : 'var(--text-secondary)', fontSize: '14px', marginTop: '8px' }}>You will approve anything clinical before the patient sees it.</p>
             </div>
           ) : analysis ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -323,10 +323,9 @@ export default function RoomPage() {
                 return (
                   <div style={{ padding: '20px 24px', background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div>
-                      <p style={{ fontSize: '22px', fontWeight: 700, color: cfg.color }}>{cfg.label}</p>
-                      <p style={{ fontSize: '13px', color: cfg.color, opacity: 0.8, marginTop: '3px' }}>Confidence: {(analysis.confidence * 100).toFixed(1)}%</p>
+                      <p style={{ fontSize: '20px', fontWeight: 700, color: cfg.color }}>{cfg.label}</p>
+                      <p style={{ fontSize: '13px', color: cfg.color, opacity: 0.8, marginTop: '3px' }}>Confidence {(analysis.confidence * 100).toFixed(0)}%</p>
                     </div>
-                    <span style={{ fontSize: '52px' }}>{cfg.icon}</span>
                   </div>
                 )
               })()}
@@ -339,7 +338,7 @@ export default function RoomPage() {
               )}
 
               <div className="glass" style={{ padding: '20px 24px' }}>
-                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>📋 Visit Summary</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Visit summary</p>
                 <p style={{ color: 'var(--text-primary)', lineHeight: 1.75, fontSize: '15px', whiteSpace: 'pre-wrap' }}>{analysis.summary}</p>
                 {analysis.auditorFlags && analysis.auditorFlags.length > 0 && (
                   <p style={{ marginTop: 10, fontSize: 13, color: '#f59e0b' }}>Auditor: {analysis.auditorFlags.join('; ')}</p>
@@ -357,9 +356,9 @@ export default function RoomPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 {[
-                  { label: '🤒 Symptoms',  items: analysis.extracted.symptoms,  color: '#ef4444' },
-                  { label: '💊 Medicines', items: analysis.extracted.medicines, color: '#3b82f6' },
-                  { label: '📌 Advice',    items: analysis.extracted.advice,    color: '#10b981' },
+                  { label: 'Symptoms',  items: analysis.extracted.symptoms,  color: '#9f1239' },
+                  { label: 'Medicines', items: analysis.extracted.medicines, color: '#1d4a42' },
+                  { label: 'Advice',    items: analysis.extracted.advice,    color: '#3f6212' },
                 ].map(section => (
                   <div key={section.label} className="glass" style={{ padding: '16px' }}>
                     <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '10px' }}>{section.label}</p>
@@ -374,7 +373,7 @@ export default function RoomPage() {
               </div>
 
               <div className="glass" style={{ padding: '20px 24px' }}>
-                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>🎤 Full Transcript</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Transcript</p>
                 <div className="transcript-box" style={{ whiteSpace: 'pre-wrap' }}>
                   {transcript || <span style={{ color: 'var(--text-muted)' }}>No transcript recorded.</span>}
                 </div>
@@ -401,22 +400,27 @@ export default function RoomPage() {
     <main style={{ height: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span className="font-display" style={{ fontSize: '1.15rem', color: 'var(--accent)' }}>⚕ MedAssist</span>
-          <span style={{ width: 1, height: 18, background: 'var(--border)' }} />
-          <span className="font-mono" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{roomId}</span>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', flexShrink: 0,
+        borderBottom: role === 'doctor' ? '1px solid #d6d0c4' : role === 'patient' ? '1px solid #a5f3fc' : '1px solid var(--border)',
+        background: role === 'doctor' ? '#faf8f4' : role === 'patient' ? '#ffffff' : 'var(--surface)',
+        color: role === 'doctor' ? '#1c1917' : role === 'patient' ? '#164e63' : undefined,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <span className={role === 'patient' ? 'pat-brand' : 'doc-brand'} style={{ color: role === 'doctor' ? '#234e48' : role === 'patient' ? '#0891b2' : 'var(--accent)' }}>MedAssist</span>
+          <span className="font-mono" style={{ fontSize: '13px', color: role === 'doctor' ? '#57534e' : role === 'patient' ? '#155e75' : 'var(--text-secondary)' }}>{roomId}</span>
           {role === 'doctor' && visitCtx && (
-            <span style={{ fontSize: '12px', color: 'var(--accent)' }}>
+            <span style={{ fontSize: '13px', color: '#234e48', fontWeight: 600 }}>
               {visitCtx.patientName} · visit #{visitCtx.visitNumber}
               {visitCtx.priorVisits.length ? ` · ${visitCtx.priorVisits.length} prior` : ' · first visit'}
             </span>
           )}
-          <button onClick={copyRoomId} style={{ padding: '3px 10px', background: 'var(--accent-dim)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer' }}>
-            {copied ? '✓ Copied' : 'Copy ID'}
+          <button onClick={copyRoomId} className={role === 'doctor' ? 'doc-ghost' : role === 'patient' ? 'pat-ghost' : undefined}
+            style={role === 'doctor' || role === 'patient' ? { padding: '4px 10px', minHeight: 36 } : { padding: '3px 10px', background: 'var(--accent-dim)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--accent)', fontSize: '12px', cursor: 'pointer' }}>
+            {copied ? 'Copied' : 'Copy ID'}
           </button>
           {role === 'doctor' && (
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Patient joins from Home, or types this ID</span>
+            <span style={{ fontSize: 12, color: '#57534e' }}>Patient joins from Home, or this ID</span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -473,11 +477,8 @@ export default function RoomPage() {
 
           {!remoteStream && (
             <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', background: 'linear-gradient(135deg,#0a0f1e,#0d1929)' }}>
-              <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', marginBottom: '16px' }}>
-                {peerJoined ? '🔗' : '👤'}
-              </div>
               <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
-                {peerJoined ? 'Establishing connection...' : `Waiting for ${role === 'doctor' ? 'patient' : 'doctor'} to join`}
+                {peerJoined ? 'Connecting…' : `Waiting for ${role === 'doctor' ? 'the patient' : 'the doctor'}`}
               </p>
               {!peerJoined && (
                 <div style={{ marginTop: '16px', padding: '10px 20px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '8px', textAlign: 'center' }}>
@@ -492,7 +493,7 @@ export default function RoomPage() {
           <div style={{ position: 'absolute', bottom: 16, right: 16, width: 176, height: 128, borderRadius: '10px', overflow: 'hidden', border: '2px solid var(--border)', background: 'var(--surface)' }}>
             <video ref={localVideoRef} autoPlay muted playsInline
               style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: isCameraOff ? 'none' : 'block', background: '#111' }} />
-            {isCameraOff && <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontSize: '28px' }}>📷</span></div>}
+            {isCameraOff && <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#aaa' }}>Camera off</div>}
             {cameraError && !isCameraOff && (
               <div style={{ position: 'absolute', inset: 0, padding: 8, fontSize: 10, color: '#f59e0b', background: 'rgba(0,0,0,0.7)' }}>{cameraError}</div>
             )}
@@ -560,17 +561,17 @@ export default function RoomPage() {
           {/* Bottom controls */}
           <div style={{ position: 'absolute', bottom: 32, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 24px', background: 'rgba(10,15,30,0.75)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '100px', backdropFilter: 'blur(12px)' }}>
             <button onClick={toggleMic}
-              style={{ width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer', background: isMuted ? '#ef4444' : 'rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-              {isMuted ? '🔇' : '🎤'}
+              style={{ minWidth: 72, height: 44, padding: '0 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: isMuted ? '#9f1239' : 'rgba(255,255,255,0.12)', color: 'white', fontWeight: 600, fontSize: 13 }}>
+              {isMuted ? 'Unmute' : 'Mute'}
             </button>
             <button onClick={toggleCamera}
-              style={{ width: 48, height: 48, borderRadius: '50%', border: 'none', cursor: 'pointer', background: isCameraOff ? '#ef4444' : 'rgba(255,255,255,0.1)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-              {isCameraOff ? '📷' : '📹'}
+              style={{ minWidth: 72, height: 44, padding: '0 14px', borderRadius: 8, border: 'none', cursor: 'pointer', background: isCameraOff ? '#9f1239' : 'rgba(255,255,255,0.12)', color: 'white', fontWeight: 600, fontSize: 13 }}>
+              {isCameraOff ? 'Show video' : 'Hide video'}
             </button>
             <div style={{ width: 1, height: 24, background: 'rgba(255,255,255,0.2)' }} />
             <button onClick={endCall}
-              style={{ padding: '0 24px', height: 48, borderRadius: '24px', border: 'none', cursor: 'pointer', background: '#ef4444', color: 'white', fontWeight: 600, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              📞 End & Analyze
+              style={{ padding: '0 20px', height: 44, borderRadius: 8, border: 'none', cursor: 'pointer', background: '#9f1239', color: 'white', fontWeight: 600, fontSize: 14 }}>
+              End consult
             </button>
           </div>
 

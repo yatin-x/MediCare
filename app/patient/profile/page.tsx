@@ -33,32 +33,31 @@ export default function PatientProfilePage() {
       setError(data.error || 'Save failed')
       return
     }
-    setSaved('Saved. Allergies will be used on the next visit for safety checks.')
+    setSaved('Saved. Allergies will be used for safety checks on your next visit.')
   }
 
   return (
     <main>
-      <h1 className="font-display" style={{ fontSize: '1.8rem', marginBottom: 8 }}>Profile</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>Allergies here feed the safety worker on your next consult.</p>
-      <form onSubmit={save} className="glass" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <h1 style={{ fontSize: '1.75rem', marginBottom: 8 }}>Profile</h1>
+      <p style={{ color: 'var(--pat-muted)', marginBottom: 20 }}>
+        These details help the doctor see allergies during a consult. They are not a medical record by themselves.
+      </p>
+      <form onSubmit={save} className="pat-card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Name</label>
-          <input value={name} onChange={e => setName(e.target.value)}
-            style={{ width: '100%', padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
+          <label htmlFor="name" className="pat-label">Name</label>
+          <input id="name" className="pat-input" value={name} onChange={e => setName(e.target.value)} />
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Blood group</label>
-          <input value={bloodGroup} onChange={e => setBloodGroup(e.target.value)} placeholder="e.g. O+"
-            style={{ width: '100%', padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
+          <label htmlFor="blood" className="pat-label">Blood group</label>
+          <input id="blood" className="pat-input" value={bloodGroup} onChange={e => setBloodGroup(e.target.value)} placeholder="e.g. O+" />
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Allergies (comma separated)</label>
-          <input value={allergies} onChange={e => setAllergies(e.target.value)} placeholder="e.g. penicillin"
-            style={{ width: '100%', padding: 10, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)' }} />
+          <label htmlFor="allergies" className="pat-label">Allergies (comma separated)</label>
+          <input id="allergies" className="pat-input" value={allergies} onChange={e => setAllergies(e.target.value)} placeholder="e.g. penicillin" />
         </div>
-        {error && <p style={{ color: '#f59e0b', fontSize: 13 }}>{error}</p>}
-        {saved && <p style={{ color: 'var(--accent)', fontSize: 13 }}>{saved}</p>}
-        <button type="submit" className="btn-primary">Save profile</button>
+        {error && <p role="alert" style={{ color: 'var(--pat-warn)', fontSize: 14 }}>{error}</p>}
+        {saved && <p role="status" style={{ color: 'var(--pat-cta)', fontSize: 14 }}>{saved}</p>}
+        <button type="submit" className="pat-cta">Save profile</button>
       </form>
     </main>
   )

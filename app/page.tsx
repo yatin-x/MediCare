@@ -16,32 +16,29 @@ export default function LandingPage() {
   }, [status, session, router])
 
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <main className="pat-app" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 16 }}>
-          <div style={{ width: 48, height: 48, background: 'var(--accent)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>⚕</div>
-          <h1 className="font-display" style={{ fontSize: '2.5rem' }}>MedAssist</h1>
-        </div>
-        <p style={{ color: 'var(--text-secondary)', maxWidth: 440, margin: '0 auto' }}>
-          Book a video consult, keep your visit history, and read a plain-language care summary after each visit. Doctors still approve anything clinical.
+        <h1 style={{ fontSize: '2.4rem', marginBottom: 12 }}>MedAssist</h1>
+        <p style={{ color: 'var(--pat-muted)', maxWidth: 440, margin: '0 auto', fontSize: 16 }}>
+          Book a video consult, keep your visit history, and read a plain-language care summary. Doctors still approve anything clinical.
         </p>
       </div>
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: 720 }}>
-        <div className="glass" style={{ flex: 1, minWidth: 260, padding: 28 }}>
-          <p style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 8 }}>Patients</p>
-          <h2 style={{ fontSize: '1.25rem', marginBottom: 10 }}>Your visits, in one place</h2>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Book a doctor, join the call, and open your report — no room ID to memorize.</p>
-          <Link href="/login?role=patient" className="btn-primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
-            I’m a patient
+        <div className="pat-card" style={{ flex: 1, minWidth: 260, padding: 28 }}>
+          <p className="pat-label">Patients</p>
+          <h2 style={{ fontSize: '1.35rem', marginBottom: 10 }}>Your visits, in one place</h2>
+          <p style={{ fontSize: 15, color: 'var(--pat-muted)', marginBottom: 20 }}>Book a doctor, join the call, and open your report — no room ID to memorize.</p>
+          <Link href="/login?role=patient" className="pat-cta" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+            Patient sign-in
           </Link>
         </div>
-        <div className="glass" style={{ flex: 1, minWidth: 260, padding: 28 }}>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}>Doctors</p>
-          <h2 style={{ fontSize: '1.25rem', marginBottom: 10 }}>Start today’s consults</h2>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>See bookings, start the room, and review CLEA drafts in the cockpit.</p>
-          <Link href="/login?role=doctor" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', padding: 10, borderRadius: 8, border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
-            I’m a doctor
+        <div className="doc-card" style={{ flex: 1, minWidth: 260, padding: 28 }}>
+          <p className="doc-label">Doctors</p>
+          <h2 className="font-display" style={{ fontSize: '1.35rem', marginBottom: 10, color: '#1c1917' }}>Today’s clinic</h2>
+          <p style={{ fontSize: 14, color: '#57534e', marginBottom: 20 }}>See the queue, start the matching booking, and sign off notes in the cockpit.</p>
+          <Link href="/login?role=doctor" className="doc-primary" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+            Clinic sign-in
           </Link>
         </div>
       </div>
