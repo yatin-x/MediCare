@@ -73,6 +73,13 @@ def startup_event():
     load_artifacts()
 
 
+@app.post("/reload")
+def reload_model():
+    """Reload pkl from disk after retraining without restarting the process."""
+    load_artifacts()
+    return {"status": "reloaded", "model_info": model_info}
+
+
 # ── Text preprocessing (mirrors lib/nlp.ts logic) ─────────────────────────────
 def preprocess(text: str) -> str:
     """Lowercase, strip punctuation, collapse whitespace."""

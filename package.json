@@ -8,7 +8,10 @@
     "build": "next build",
     "start": "NODE_ENV=production node server.js",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test lib/agent/pure.test.ts"
+    "test": "node --experimental-strip-types --test lib/agent/pure.test.ts",
+    "ml:train": "bash ai-service/with-venv.sh ai-service/train.py",
+    "ml:test": "bash ai-service/with-venv.sh ai-service/test_model.py",
+    "ml:serve": "bash ai-service/with-venv.sh -m uvicorn main:app --app-dir ai-service --host 0.0.0.0 --port 8001"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.6.0",

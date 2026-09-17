@@ -3,7 +3,8 @@ import type { UrgencyLevel, UrgencyResult } from './types.ts'
 export const HIGH_KEYWORDS = [
   'chest pain', 'heart attack', 'stroke', 'difficulty breathing',
   'shortness of breath', 'severe', 'emergency', 'unconscious',
-  'seizure', 'radiating', 'worst headache',
+  'seizure', 'radiating', 'worst headache', 'anaphylaxis',
+  'vomiting blood', 'suicidal', 'unresponsive',
 ]
 
 export const MEDIUM_KEYWORDS = [

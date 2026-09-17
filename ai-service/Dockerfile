@@ -12,7 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app code + model artifacts
-COPY main.py .
+COPY main.py train.py test_model.py ./
 COPY model/ ./model/
 
 EXPOSE 8000

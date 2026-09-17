@@ -1,14 +1,18 @@
 {
+  "version": "2.0.0",
+  "trained_at": "2026-09-17T18:04:29.036509+00:00",
   "labels": [
     "low",
     "medium",
     "high"
   ],
+  "algorithm": "tfidf_1-2gram + calibrated logistic regression",
+  "n_examples": 112,
+  "holdout_accuracy": 0.8947,
   "description": {
     "low": "Minor issues, routine care",
     "medium": "Needs attention, follow-up required",
     "high": "Serious/emergency, immediate attention"
   },
-  "accuracy": 88.83,
-  "note": "This is a calibrated model for better confidence scores. Use predict_proba for confidence."
+  "note": "Synthetic labeled consult snippets for the demo. Retrain with real annotated visits before clinical use."
 }

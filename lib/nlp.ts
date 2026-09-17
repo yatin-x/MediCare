@@ -13,21 +13,25 @@ const SYMPTOM_KEYWORDS = [
   'diarrhea', 'fatigue', 'dizziness', 'rash', 'swelling',
   'shortness of breath', 'chest pain', 'sore throat', 'runny nose',
   'chills', 'weakness', 'loss of appetite', 'insomnia', 'anxiety',
-  'bleeding', 'seizure', 'numbness', 'blurred vision', 'palpitations'
+  'bleeding', 'seizure', 'numbness', 'blurred vision', 'palpitations',
+  'wheezing', 'photophobia', 'stiff neck', 'abdominal pain', 'heartburn',
+  'constipation', 'itching', 'hives', 'ear pain', 'joint pain',
 ]
 
 const MEDICINE_KEYWORDS = [
   'paracetamol', 'ibuprofen', 'aspirin', 'amoxicillin', 'azithromycin',
   'metformin', 'atorvastatin', 'omeprazole', 'cetirizine', 'pantoprazole',
   'ciprofloxacin', 'dolo', 'crocin', 'combiflam', 'montair', 'levocet',
-  'antibiotics', 'antibiotic', 'tablet', 'capsule', 'syrup', 'injection'
+  'antibiotics', 'antibiotic', 'tablet', 'capsule', 'syrup', 'injection',
+  'salbutamol', 'insulin', 'losartan', 'amlodipine', 'thyroxine',
 ]
 
 const ADVICE_KEYWORDS = [
   'rest', 'drink water', 'stay hydrated', 'avoid spicy', 'light diet',
   'exercise', 'follow up', 'come back', 'revisit', 'sleep well',
   'avoid stress', 'bland diet', 'warm fluids', 'steam inhalation',
-  'monitor temperature', 'blood test', 'x-ray', 'scan', 'ultrasound'
+  'monitor temperature', 'blood test', 'x-ray', 'scan', 'ultrasound',
+  'oral rehydration', 'salt water gargle',
 ]
 
 const DURATION_PATTERNS = [

@@ -6,7 +6,7 @@ Usage:
     python test_model.py
 """
 
-import pickle
+import joblib
 import json
 import re
 from pathlib import Path
@@ -22,25 +22,23 @@ optional = ["model_info.json"]
 
 for fname in required:
     path = MODEL_DIR / fname
-    status = "✅ FOUND" if path.exists() else "❌ MISSING"
+    status = "FOUND" if path.exists() else "MISSING"
     print(f"  {status}  {fname}")
 
 for fname in optional:
     path = MODEL_DIR / fname
-    status = "✅ FOUND" if path.exists() else "⚠️  MISSING (optional)"
+    status = "FOUND" if path.exists() else "MISSING (optional)"
     print(f"  {status}  {fname}")
 
 missing = [f for f in required if not (MODEL_DIR / f).exists()]
 if missing:
-    print(f"\n🚨 Cannot continue — missing required files: {missing}")
-    print(f"   Place them inside:  ml-service/model/")
-    exit(1)
+    print(f"\nCannot continue — missing required files: {missing}")
+    print("   Run:  python3 ai-service/train.py")
+    raise SystemExit(1)
 
 print()
-
 print("Loading model pipeline...", end=" ")
-with open(MODEL_DIR / "urgency_model.pkl", "rb") as f:
-    model = pickle.load(f)
+model = joblib.load(MODEL_DIR / "urgency_model.pkl")
 print("OK")
 
 if (MODEL_DIR / "model_info.json").exists():
@@ -95,7 +93,7 @@ for text, expected in test_cases:
     classes = list(model.classes_)
     proba_dict = {c: round(float(p), 3) for c, p in zip(classes, proba)}
 
-    match = "✅" if str(label).lower() == expected else "⚠️ "
+    match = "OK" if str(label).lower() == expected else "MISS"
     if str(label).lower() == expected:
         passed += 1
 
@@ -110,15 +108,14 @@ print(f"Results: {passed}/{len(test_cases)} matched expected labels")
 print()
 
 if passed >= 3:
-    print("✅ Model looks good — you can start the FastAPI server.")
+    print("Model looks good — you can start the FastAPI server.")
     print()
     print("Start command (local):")
-    print("   cd ml-service")
-    print("   uvicorn main:app --host 0.0.0.0 --port 8000 --reload")
+    print("   cd ai-service")
+    print("   uvicorn main:app --host 0.0.0.0 --port 8001 --reload")
     print()
     print("Start command (Docker):")
     print("   docker compose up --build")
 else:
-    print("⚠️  More than 2 predictions didn't match expected labels.")
-    print("   This may be fine if your training data has different label distributions.")
-    print("   Check with your roommate about the training dataset and labels used.")
+    print("More than 2 predictions didn't match expected labels.")
+    print("   Retrain with: python3 ai-service/train.py")
